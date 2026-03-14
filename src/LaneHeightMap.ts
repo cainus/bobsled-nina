@@ -36,6 +36,17 @@ export class LaneHeightMap {
     return 0; // default ground level
   }
 
+  /** Check if a lane is on an upward ramp at a given world Z */
+  isUpRamp(lane: number, worldZ: number): boolean {
+    for (const seg of this.segments) {
+      if (seg.lane !== lane) continue;
+      if (worldZ >= seg.startZ && worldZ <= seg.endZ) {
+        return seg.endY > seg.startY;
+      }
+    }
+    return false;
+  }
+
   /** Scroll all segments by an amount (track moves toward player) */
   scroll(amount: number) {
     for (const seg of this.segments) {

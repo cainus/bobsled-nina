@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Game } from './Game';
 
 export interface Coin {
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;
   baseY: number;
   active: boolean;
 }
@@ -14,19 +14,48 @@ export class CoinManager {
   private spawnInterval = 0.6;
   private spawnZ = 100;
 
-  private coinGeo: THREE.CylinderGeometry;
-  private coinMat: THREE.MeshStandardMaterial;
+  private flakeGroup: THREE.Group;
 
   constructor(game: Game) {
     this.game = game;
-    this.coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 12);
-    this.coinMat = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
-      metalness: 0.7,
-      roughness: 0.2,
-      emissive: 0xaa8800,
-      emissiveIntensity: 0.3,
+    this.flakeGroup = new THREE.Group();
+  }
+
+  private createSnowflake(): THREE.Group {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xeeffff,
+      metalness: 0.3,
+      roughness: 0.1,
+      emissive: 0x88ccff,
+      emissiveIntensity: 0.4,
+      transparent: true,
+      opacity: 0.9,
     });
+    // 6 arms radiating from center
+    for (let i = 0; i < 6; i++) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.03), mat);
+      arm.rotation.z = (i / 6) * Math.PI * 2;
+      arm.position.set(
+        Math.sin(arm.rotation.z) * 0.2,
+        Math.cos(arm.rotation.z) * 0.2,
+        0
+      );
+      group.add(arm);
+      // Small branch on each arm
+      const branch = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.03), mat);
+      branch.rotation.z = arm.rotation.z + 0.5;
+      branch.position.set(
+        Math.sin(arm.rotation.z) * 0.35 + Math.sin(arm.rotation.z + 0.5) * 0.06,
+        Math.cos(arm.rotation.z) * 0.35 + Math.cos(arm.rotation.z + 0.5) * 0.06,
+        0
+      );
+      group.add(branch);
+    }
+    // Center gem
+    const center = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), mat);
+    group.add(center);
+    return group;
   }
 
   update(dt: number) {
@@ -43,7 +72,8 @@ export class CoinManager {
       if (!coin.active) continue;
       coin.mesh.position.z -= moveAmount;
       // Spin and float
-      coin.mesh.rotation.y += dt * 3;
+      coin.mesh.rotation.y += dt * 2;
+      coin.mesh.rotation.z += dt * 0.5;
       coin.mesh.position.y = coin.baseY + Math.sin(time + coin.mesh.position.z * 0.5) * 0.15;
 
       if (coin.mesh.position.z < -15) {
@@ -63,16 +93,14 @@ export class CoinManager {
     for (let i = 0; i < count; i++) {
       const coinZ = this.spawnZ + i * 2.5;
       const laneY = this.game.laneHeightMap.getHeight(lane, coinZ);
-      const mesh = new THREE.Mesh(this.coinGeo, this.coinMat);
-      mesh.rotation.x = Math.PI / 2;
-      mesh.position.set(
+      const flake = this.createSnowflake();
+      flake.position.set(
         lane * this.game.laneWidth,
         laneY + 1.2,
         this.spawnZ + i * 2.5
       );
-      mesh.castShadow = true;
-      this.game.scene.add(mesh);
-      this.coins.push({ mesh, baseY: laneY + 1.2, active: true });
+      this.game.scene.add(flake);
+      this.coins.push({ mesh: flake as any, baseY: laneY + 1.2, active: true });
     }
   }
 

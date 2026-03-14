@@ -23,7 +23,7 @@ export class ParticleManager {
 
   private smallGeo = new THREE.SphereGeometry(0.06, 4, 4);
   private snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  private goldMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+  private collectMat = new THREE.MeshBasicMaterial({ color: 0xaaeeff });
 
   constructor(game: Game) {
     this.game = game;
@@ -83,9 +83,9 @@ export class ParticleManager {
     }
   }
 
-  spawnCoinBurst(position: THREE.Vector3) {
+  spawnCollectBurst(position: THREE.Vector3) {
     for (let i = 0; i < 8; i++) {
-      const mesh = new THREE.Mesh(this.smallGeo, this.goldMat.clone());
+      const mesh = new THREE.Mesh(this.smallGeo, this.collectMat.clone());
       (mesh.material as THREE.MeshBasicMaterial).transparent = true;
       mesh.position.copy(position);
       const velocity = new THREE.Vector3(

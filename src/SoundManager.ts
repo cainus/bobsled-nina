@@ -93,6 +93,27 @@ export class SoundManager {
     }
   }
 
+  playCollect() {
+    const ctx = this.ensureContext();
+    // Quick sparkly chime — two sine tones in rapid succession
+    const now = ctx.currentTime;
+    const notes = [1200, 1600, 2000];
+    for (let i = 0; i < notes.length; i++) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = notes[i];
+      const gain = ctx.createGain();
+      const start = now + i * 0.04;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.15, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.15);
+    }
+  }
+
   startWind() {
     if (this.windActive) return;
     const ctx = this.ensureContext();

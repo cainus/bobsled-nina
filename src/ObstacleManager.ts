@@ -7,7 +7,7 @@ export interface Obstacle {
   active: boolean;
 }
 
-type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowRock' | 'treeBranch';
+type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch';
 
 export class ObstacleManager {
   game: Game;
@@ -51,7 +51,7 @@ export class ObstacleManager {
   }
 
   private spawnObstacle() {
-    const types: ObstacleType[] = ['rock', 'snowman', 'pineTree', 'lowRock', 'treeBranch'];
+    const types: ObstacleType[] = ['rock', 'snowman', 'pineTree', 'lowObstacle', 'treeBranch'];
     const type = types[Math.floor(Math.random() * types.length)];
 
     if (type === 'treeBranch') {
@@ -63,8 +63,11 @@ export class ObstacleManager {
       this.game.scene.add(group);
       this.obstacles.push({ mesh: group, collider, active: true });
     } else {
-      // Pick 1-2 lanes to block
-      const lanes = [-1, 0, 1];
+      // Pick 1-2 lanes to block, excluding lanes on up ramps
+      const lanes = [-1, 0, 1].filter(
+        lane => !this.game.laneHeightMap.isUpRamp(lane, this.spawnZ)
+      );
+      if (lanes.length === 0) return;
       const numBlocked = Math.random() > 0.6 ? 2 : 1;
       const shuffled = lanes.sort(() => Math.random() - 0.5);
       const blockedLanes = shuffled.slice(0, numBlocked);
@@ -171,39 +174,91 @@ export class ObstacleManager {
         break;
       }
 
-      case 'lowRock': {
-        // Low flat rock formation — jump over it
-        const slateMat = new THREE.MeshStandardMaterial({
-          color: 0x6b6b6b,
-          roughness: 0.85,
-        });
-        // Main flat slab
-        const slabGeo = new THREE.DodecahedronGeometry(0.7, 0);
-        const slab = new THREE.Mesh(slabGeo, slateMat);
-        slab.position.y = 0.25;
-        slab.scale.set(1.8, 0.4, 1.2);
-        slab.rotation.set(0.1, 0.5, 0.05);
-        slab.castShadow = true;
-        group.add(slab);
-        // A couple of smaller rocks beside it
-        for (const offset of [-0.6, 0.5]) {
-          const pebbleGeo = new THREE.DodecahedronGeometry(0.3, 0);
-          const pebble = new THREE.Mesh(pebbleGeo, new THREE.MeshStandardMaterial({
-            color: 0x7a7a7a,
-            roughness: 0.9,
-          }));
-          pebble.position.set(offset, 0.18, 0.2 * Math.sign(offset));
-          pebble.rotation.set(Math.random(), Math.random(), Math.random());
-          pebble.scale.set(1, 0.5, 1);
-          pebble.castShadow = true;
-          group.add(pebble);
+      case 'lowObstacle': {
+        const variant = Math.floor(Math.random() * 3);
+        if (variant === 0) {
+          // Low flat rock formation
+          const slateMat = new THREE.MeshStandardMaterial({ color: 0x6b6b6b, roughness: 0.85 });
+          const slab = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), slateMat);
+          slab.position.y = 0.25;
+          slab.scale.set(1.8, 0.4, 1.2);
+          slab.rotation.set(0.1, 0.5, 0.05);
+          slab.castShadow = true;
+          group.add(slab);
+          for (const offset of [-0.6, 0.5]) {
+            const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3, 0),
+              new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.9 }));
+            pebble.position.set(offset, 0.18, 0.2 * Math.sign(offset));
+            pebble.rotation.set(Math.random(), Math.random(), Math.random());
+            pebble.scale.set(1, 0.5, 1);
+            pebble.castShadow = true;
+            group.add(pebble);
+          }
+          const snowPatch = new THREE.Mesh(
+            new THREE.SphereGeometry(0.35, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.35),
+            new THREE.MeshStandardMaterial({ color: 0xfafafa }));
+          snowPatch.position.set(0.1, 0.45, 0);
+          group.add(snowPatch);
+        } else if (variant === 1) {
+          // Fallen log — single horizontal trunk
+          const barkMat = new THREE.MeshStandardMaterial({ color: 0x6d4c2e, roughness: 0.9 });
+          const logGeo = new THREE.CylinderGeometry(0.25, 0.3, 2.4, 8);
+          const log = new THREE.Mesh(logGeo, barkMat);
+          log.rotation.z = Math.PI / 2;
+          log.position.y = 0.3;
+          log.castShadow = true;
+          group.add(log);
+          // Cut ends — lighter wood color
+          const endMat = new THREE.MeshStandardMaterial({ color: 0xc4a46c, roughness: 0.7 });
+          for (const side of [-1.2, 1.2]) {
+            const endCap = new THREE.Mesh(new THREE.CircleGeometry(0.27, 8), endMat);
+            endCap.position.set(side, 0.3, 0);
+            endCap.rotation.y = Math.sign(side) * Math.PI / 2;
+            group.add(endCap);
+          }
+          // Snow dusting on top
+          const snowGeo = new THREE.BoxGeometry(1.8, 0.06, 0.3);
+          const snow = new THREE.Mesh(snowGeo, new THREE.MeshStandardMaterial({ color: 0xfafafa }));
+          snow.position.set(0, 0.55, 0);
+          group.add(snow);
+        } else {
+          // Log pile — two logs stacked with one on top
+          const barkMat = new THREE.MeshStandardMaterial({ color: 0x5a3d1e, roughness: 0.95 });
+          const barkMat2 = new THREE.MeshStandardMaterial({ color: 0x7a5533, roughness: 0.85 });
+          const endMat = new THREE.MeshStandardMaterial({ color: 0xc4a46c, roughness: 0.7 });
+          // Bottom two logs
+          for (const offset of [-0.28, 0.28]) {
+            const log = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 2.0, 8), barkMat);
+            log.rotation.z = Math.PI / 2;
+            log.position.set(0, 0.24, offset);
+            log.castShadow = true;
+            group.add(log);
+            for (const side of [-1.0, 1.0]) {
+              const endCap = new THREE.Mesh(new THREE.CircleGeometry(0.23, 8), endMat);
+              endCap.position.set(side, 0.24, offset);
+              endCap.rotation.y = Math.sign(side) * Math.PI / 2;
+              group.add(endCap);
+            }
+          }
+          // Top log
+          const topLog = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 2.2, 8), barkMat2);
+          topLog.rotation.z = Math.PI / 2;
+          topLog.position.set(0, 0.62, 0);
+          topLog.castShadow = true;
+          group.add(topLog);
+          for (const side of [-1.1, 1.1]) {
+            const endCap = new THREE.Mesh(new THREE.CircleGeometry(0.21, 8), endMat);
+            endCap.position.set(side, 0.62, 0);
+            endCap.rotation.y = Math.sign(side) * Math.PI / 2;
+            group.add(endCap);
+          }
+          // Snow on top
+          const snow = new THREE.Mesh(
+            new THREE.BoxGeometry(1.6, 0.05, 0.25),
+            new THREE.MeshStandardMaterial({ color: 0xfafafa }));
+          snow.position.set(0, 0.83, 0);
+          group.add(snow);
         }
-        // Snow patches
-        const snowPatchGeo = new THREE.SphereGeometry(0.35, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.35);
-        const snowPatchMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
-        const snowPatch = new THREE.Mesh(snowPatchGeo, snowPatchMat);
-        snowPatch.position.set(0.1, 0.45, 0);
-        group.add(snowPatch);
         break;
       }
     }

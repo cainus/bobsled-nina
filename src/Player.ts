@@ -18,6 +18,10 @@ export class Player {
   private readonly gravity = -30;
   private groundY = 0.5;
 
+  // Ramp launch
+  private wasOnUpRamp = false;
+  private readonly rampLaunchForce = 8;
+
   // Duck
   private isDucking = false;
   private duckTimer = 0;
@@ -440,6 +444,14 @@ export class Player {
     // Get ground height from lane height map
     const laneHeight = this.game.laneHeightMap.getHeight(this.targetLane, 0);
     this.groundY = laneHeight + 0.5;
+
+    // Ramp launch — pop into the air after cresting an up ramp
+    const onUpRamp = this.game.laneHeightMap.isUpRamp(this.targetLane, 0);
+    if (this.wasOnUpRamp && !onUpRamp && !this.isJumping) {
+      this.isJumping = true;
+      this.jumpVelocity = this.rampLaunchForce;
+    }
+    this.wasOnUpRamp = onUpRamp;
 
     // Jump physics
     if (this.isJumping) {

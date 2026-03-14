@@ -156,7 +156,7 @@ export class Game {
     // Update score (distance-based)
     this.score += Math.round(this.speed * dt);
     document.getElementById('score')!.textContent = this.score.toString();
-    document.getElementById('coins-display')!.textContent = `Coins: ${this.coins}`;
+    document.getElementById('coins-display')!.textContent = `Snowflakes: ${this.coins}`;
 
     // Vehicle upgrades based on score
     if (this.score >= 1500) {
@@ -198,7 +198,7 @@ export class Game {
       }
     }
 
-    // Check coins
+    // Check snowflake collectibles
     for (const coin of this.coinManager.coins) {
       if (!coin.active) continue;
       const coinBox = new THREE.Box3().setFromObject(coin.mesh);
@@ -206,7 +206,8 @@ export class Game {
         coin.active = false;
         this.scene.remove(coin.mesh);
         this.coins++;
-        this.particleManager.spawnCoinBurst(coin.mesh.position);
+        this.particleManager.spawnCollectBurst(coin.mesh.position);
+        this.soundManager.playCollect();
       }
     }
   }
@@ -217,6 +218,6 @@ export class Game {
     this.soundManager.reset();
     document.getElementById('game-over-screen')!.style.display = 'flex';
     document.getElementById('final-score')!.textContent = this.score.toString();
-    document.getElementById('final-coins')!.textContent = `Coins: ${this.coins}`;
+    document.getElementById('final-coins')!.textContent = `Snowflakes: ${this.coins}`;
   }
 }
