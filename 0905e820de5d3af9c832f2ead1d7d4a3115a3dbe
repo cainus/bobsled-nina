@@ -1,0 +1,29 @@
+src/SoundManager.ts
+  ed7d2a488e7fed10 1-146
+src/Game.ts
+  ed7d2a488e7fed10 8,21,66,112,122,152-155,170-172,217
+src/ParticleManager.ts
+  ed7d2a488e7fed10 118,121-125,127,129-130,132
+src/ObstacleManager.ts
+  ed7d2a488e7fed10 10,54,90-92,148-163,165-170,174-178,180-206,214-306
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "0905e820de5d3af9c832f2ead1d7d4a3115a3dbe",
+  "prompts": {
+    "ed7d2a488e7fed10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9027e775-1b63-49d0-99f4-0ec4bec4a3a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 356,
+      "total_deletions": 86,
+      "accepted_lines": 323,
+      "overriden_lines": 0
+    }
+  }
+}
