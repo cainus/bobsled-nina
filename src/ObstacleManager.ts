@@ -5,9 +5,10 @@ export interface Obstacle {
   mesh: THREE.Object3D;
   collider?: THREE.Object3D; // if set, use this for collision instead of mesh
   active: boolean;
+  jumpScored?: boolean; // true if player already got jump bonus for this obstacle
 }
 
-type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch';
+type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree';
 
 export class ObstacleManager {
   game: Game;
@@ -51,8 +52,29 @@ export class ObstacleManager {
   }
 
   private spawnObstacle() {
-    const types: ObstacleType[] = ['rock', 'snowman', 'pineTree', 'lowObstacle', 'treeBranch'];
+    const types: ObstacleType[] = ['rock', 'snowman', 'pineTree', 'lowObstacle', 'treeBranch', 'largeTree'];
     const type = types[Math.floor(Math.random() * types.length)];
+
+    if (type === 'largeTree') {
+      // Large tree that spans 2 adjacent lanes
+      const lanes = [-1, 0, 1].filter(
+        lane => !this.game.laneHeightMap.isUpRamp(lane, this.spawnZ)
+      );
+      if (lanes.length < 2) return;
+      // Pick 2 adjacent lanes
+      const pairs: [number, number][] = [];
+      if (lanes.includes(-1) && lanes.includes(0)) pairs.push([-1, 0]);
+      if (lanes.includes(0) && lanes.includes(1)) pairs.push([0, 1]);
+      if (pairs.length === 0) return;
+      const pair = pairs[Math.floor(Math.random() * pairs.length)];
+      const centerX = ((pair[0] + pair[1]) / 2) * this.game.laneWidth;
+      const laneY = this.game.laneHeightMap.getHeight(pair[0], this.spawnZ);
+      const tree = this.createLargeTree();
+      tree.position.set(centerX, laneY, this.spawnZ);
+      this.game.scene.add(tree);
+      this.obstacles.push({ mesh: tree, active: true });
+      return;
+    }
 
     if (type === 'treeBranch') {
       // Tree branch spans 1-2 lanes from one side — must duck under
@@ -263,6 +285,43 @@ export class ObstacleManager {
       }
 
     }
+
+    return group;
+  }
+
+  private createLargeTree(): THREE.Group {
+    const group = new THREE.Group();
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3527 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2a6e2a });
+
+    // Thick trunk
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4, 8), trunkMat);
+    trunk.position.y = 2;
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    // Large foliage layers
+    for (let i = 0; i < 4; i++) {
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(2.5 - i * 0.4, 2.0, 8), leafMat);
+      cone.position.y = 3.5 + i * 1.2;
+      cone.castShadow = true;
+      group.add(cone);
+    }
+
+    // Snow on top layers
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+    for (let i = 0; i < 3; i++) {
+      const snow = new THREE.Mesh(
+        new THREE.ConeGeometry(2.2 - i * 0.4, 0.4, 8), snowMat);
+      snow.position.y = 4.3 + i * 1.2;
+      group.add(snow);
+    }
+
+    // Snow cap
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.6, 8), snowMat);
+    cap.position.y = 8.5;
+    group.add(cap);
 
     return group;
   }

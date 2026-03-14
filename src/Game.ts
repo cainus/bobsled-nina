@@ -34,6 +34,11 @@ export class Game {
   // Lane positions: -1 = left, 0 = center, 1 = right
   readonly laneWidth = 3;
 
+  // Dynamic steepness (always downhill)
+  private steepness = 0.5; // 0 = gentle, 1 = steep
+  private steepnessTarget = 0.5;
+  private steepnessTimer = 0;
+
   // Side bears (appear at 1700 pts, max once per 1000 pts)
   private bears: { mesh: THREE.Group; hasGrowled: boolean }[] = [];
   private nextBearScore = 0; // score threshold for next bear spawn
@@ -166,8 +171,9 @@ export class Game {
       const bear = this.bears[i];
       bear.mesh.position.z -= moveAmount;
 
-      // Growl when bear is nearby
-      if (!bear.hasGrowled && bear.mesh.position.z < 15 && bear.mesh.position.z > -5) {
+      // Growl when bear is approaching (~3s ahead at current speed)
+      const growlDist = this.speed * 3;
+      if (!bear.hasGrowled && bear.mesh.position.z < growlDist && bear.mesh.position.z > -5) {
         bear.hasGrowled = true;
         this.soundManager.playGrowl();
       }
@@ -309,8 +315,23 @@ export class Game {
     // Cap delta to avoid physics explosions on tab-switch
     const dt = Math.min(delta, 0.05);
 
-    // Increase speed over time
-    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed);
+    // Dynamic steepness — changes every few seconds
+    this.steepnessTimer -= dt;
+    if (this.steepnessTimer <= 0) {
+      this.steepnessTarget = 0.2 + Math.random() * 0.8;
+      this.steepnessTimer = 3 + Math.random() * 5;
+    }
+    this.steepness += (this.steepnessTarget - this.steepness) * 2 * dt;
+
+    // Update camera tilt based on steepness
+    const camY = 10 + this.steepness * 4;
+    const lookY = 2 - this.steepness * 4;
+    this.camera.position.y = camY;
+    this.camera.lookAt(0, lookY, 25);
+
+    // Increase speed over time — steepness gives a speed boost
+    const steepnessBoost = this.steepness * 12;
+    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost);
 
     // Process input
     const input = this.inputManager.consume();
@@ -378,6 +399,20 @@ export class Game {
         this.endGame();
         return;
       }
+
+      // Jump bonus — player is in the air and obstacle passes underneath
+      if (this.player.isJumping && !obstacle.jumpScored) {
+        const obsZ = obstacle.mesh.position.z;
+        const playerX = this.player.group.position.x;
+        const obsX = obstacle.mesh.position.x;
+        // Check if obstacle is in the same lane (close in X) and just passed the player
+        if (Math.abs(obsX - playerX) < this.laneWidth * 0.7 &&
+            obsZ < 1 && obsZ > -3) {
+          obstacle.jumpScored = true;
+          this.score += 50;
+          this.showJumpBonus();
+        }
+      }
     }
 
     // Check snowflake collectibles
@@ -392,6 +427,18 @@ export class Game {
         this.soundManager.playCollect();
       }
     }
+  }
+
+  private showJumpBonus() {
+    const el = document.createElement('div');
+    el.textContent = '+50';
+    el.style.cssText = 'position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:36px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.6s ease-out;opacity:1;';
+    document.getElementById('ui-overlay')!.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.top = '30%';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), 700);
   }
 
   private endGame() {
