@@ -145,6 +145,13 @@ export class Game {
     document.getElementById('score')!.textContent = this.score.toString();
     document.getElementById('coins-display')!.textContent = `Coins: ${this.coins}`;
 
+    // Vehicle upgrades based on score
+    if (this.score >= 1000) {
+      this.player.switchVehicle('snowboard');
+    } else if (this.score >= 500) {
+      this.player.switchVehicle('skis');
+    }
+
     // Render
     this.renderer.render(this.scene, this.camera);
 

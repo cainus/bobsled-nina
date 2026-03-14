@@ -23,30 +23,58 @@ export class Player {
   private duckTimer = 0;
   private readonly duckDuration = 0.6;
 
-  // Bobsled + character meshes
-  private bobsled!: THREE.Group;
+  // Vehicle + character meshes
+  private vehicle!: THREE.Group;
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
+  private currentVehicle: 'bobsled' | 'skis' | 'snowboard' = 'bobsled';
 
   constructor(game: Game) {
     this.game = game;
     this.group = new THREE.Group();
-    this.buildBobsled();
+    this.buildVehicle('bobsled');
     this.buildCharacter();
     this.group.position.set(0, this.groundY, 0);
     game.scene.add(this.group);
   }
 
-  private buildBobsled() {
-    this.bobsled = new THREE.Group();
+  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard') {
+    if (this.currentVehicle === type) return;
+    this.currentVehicle = type;
+    // Remove old vehicle and character, rebuild
+    this.group.remove(this.vehicle);
+    this.group.remove(this.character);
+    this.buildVehicle(type);
+    this.buildCharacter();
+  }
 
+  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard') {
+    this.vehicle = new THREE.Group();
+
+    switch (type) {
+      case 'bobsled':
+        this.buildBobsledParts();
+        break;
+      case 'skis':
+        this.buildSkisParts();
+        break;
+      case 'snowboard':
+        this.buildSnowboardParts();
+        break;
+    }
+
+    this.vehicle.position.y = -0.1;
+    this.group.add(this.vehicle);
+  }
+
+  private buildBobsledParts() {
     // Sled body - sleek shape
     const bodyGeo = new THREE.BoxGeometry(1.6, 0.4, 2.8);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe63946 }); // red sled
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe63946 });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = 0;
     body.castShadow = true;
-    this.bobsled.add(body);
+    this.vehicle.add(body);
 
     // Front curved part
     const frontGeo = new THREE.CylinderGeometry(0.3, 0.8, 0.5, 8, 1, false, 0, Math.PI);
@@ -55,7 +83,7 @@ export class Player {
     front.rotation.x = Math.PI / 2;
     front.rotation.z = Math.PI;
     front.position.set(0, 0.1, 1.55);
-    this.bobsled.add(front);
+    this.vehicle.add(front);
 
     // Runners (metal blades underneath)
     const runnerGeo = new THREE.BoxGeometry(0.1, 0.15, 3.0);
@@ -63,7 +91,7 @@ export class Player {
     for (const side of [-0.7, 0.7]) {
       const runner = new THREE.Mesh(runnerGeo, runnerMat);
       runner.position.set(side, -0.25, 0);
-      this.bobsled.add(runner);
+      this.vehicle.add(runner);
     }
 
     // Side rails
@@ -72,11 +100,120 @@ export class Player {
     for (const side of [-0.75, 0.75]) {
       const rail = new THREE.Mesh(railGeo, railMat);
       rail.position.set(side, 0.3, -0.1);
-      this.bobsled.add(rail);
+      this.vehicle.add(rail);
+    }
+  }
+
+  private buildSkisParts() {
+    const skiMat = new THREE.MeshStandardMaterial({ color: 0x1565c0 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 });
+
+    // Two skis
+    for (const side of [-0.25, 0.25]) {
+      // Ski body - long thin board
+      const skiGeo = new THREE.BoxGeometry(0.18, 0.06, 2.4);
+      const ski = new THREE.Mesh(skiGeo, skiMat);
+      ski.position.set(side, -0.05, 0.2);
+      ski.castShadow = true;
+      this.vehicle.add(ski);
+
+      // Ski tip - curved front
+      const tipGeo = new THREE.CylinderGeometry(0.02, 0.09, 0.3, 6, 1, false, 0, Math.PI);
+      const tip = new THREE.Mesh(tipGeo, skiMat);
+      tip.rotation.x = Math.PI / 2;
+      tip.rotation.z = Math.PI;
+      tip.position.set(side, 0.02, 1.5);
+      this.vehicle.add(tip);
+
+      // Binding
+      const bindingGeo = new THREE.BoxGeometry(0.2, 0.1, 0.25);
+      const binding = new THREE.Mesh(bindingGeo, metalMat);
+      binding.position.set(side, 0.03, 0);
+      this.vehicle.add(binding);
     }
 
-    this.bobsled.position.y = -0.1;
-    this.group.add(this.bobsled);
+    // Ski poles
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const basketMat = new THREE.MeshStandardMaterial({ color: 0xff4444 });
+    for (const side of [-0.55, 0.55]) {
+      // Pole shaft
+      const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.8, 6);
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(side, 0.7, -0.3);
+      pole.rotation.x = -0.25;
+      pole.castShadow = true;
+      this.vehicle.add(pole);
+
+      // Pole handle/grip
+      const gripGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.15, 6);
+      const grip = new THREE.Mesh(gripGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
+      grip.position.set(side, 1.55, -0.5);
+      grip.rotation.x = -0.25;
+      this.vehicle.add(grip);
+
+      // Pole basket (small disc near bottom)
+      const basketGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8);
+      const basket = new THREE.Mesh(basketGeo, basketMat);
+      basket.position.set(side, 0.05, -0.15);
+      this.vehicle.add(basket);
+    }
+  }
+
+  private buildSnowboardParts() {
+    // Single wide board
+    const boardMat = new THREE.MeshStandardMaterial({ color: 0x9c27b0 }); // purple board
+    const boardGeo = new THREE.BoxGeometry(0.7, 0.08, 2.2);
+    const board = new THREE.Mesh(boardGeo, boardMat);
+    board.position.set(0, -0.05, 0.2);
+    board.castShadow = true;
+    this.vehicle.add(board);
+
+    // Board graphic stripe
+    const stripeGeo = new THREE.BoxGeometry(0.5, 0.085, 0.8);
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xff4081 });
+    const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+    stripe.position.set(0, -0.045, 0.2);
+    this.vehicle.add(stripe);
+
+    // Nose - rounded front
+    const noseGeo = new THREE.CylinderGeometry(0.04, 0.35, 0.3, 8, 1, false, 0, Math.PI);
+    const nose = new THREE.Mesh(noseGeo, boardMat);
+    nose.rotation.x = Math.PI / 2;
+    nose.rotation.z = Math.PI;
+    nose.position.set(0, 0.0, 1.45);
+    this.vehicle.add(nose);
+
+    // Tail - slight uptick
+    const tailGeo = new THREE.CylinderGeometry(0.04, 0.35, 0.25, 8, 1, false, 0, Math.PI);
+    const tail = new THREE.Mesh(tailGeo, boardMat);
+    tail.rotation.x = -Math.PI / 2;
+    tail.position.set(0, 0.0, -1.0);
+    this.vehicle.add(tail);
+
+    // Bindings
+    const bindingMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    for (const z of [-0.15, 0.5]) {
+      const bindingGeo = new THREE.BoxGeometry(0.35, 0.12, 0.2);
+      const binding = new THREE.Mesh(bindingGeo, bindingMat);
+      binding.position.set(0, 0.04, z);
+      this.vehicle.add(binding);
+
+      // Binding straps
+      const strapGeo = new THREE.BoxGeometry(0.4, 0.06, 0.04);
+      const strapMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+      const strap = new THREE.Mesh(strapGeo, strapMat);
+      strap.position.set(0, 0.1, z);
+      this.vehicle.add(strap);
+    }
+
+    // Edge highlights (metal edges)
+    const edgeMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 });
+    for (const side of [-0.35, 0.35]) {
+      const edgeGeo = new THREE.BoxGeometry(0.03, 0.08, 2.2);
+      const edge = new THREE.Mesh(edgeGeo, edgeMat);
+      edge.position.set(side, -0.05, 0.2);
+      this.vehicle.add(edge);
+    }
   }
 
   private buildCharacter() {
@@ -93,32 +230,32 @@ export class Player {
     torso.castShadow = true;
     this.character.add(torso);
 
-    // Head
+    // Head group — counter-rotated on snowboard so she looks forward
+    const headGroup = new THREE.Group();
+
     const headGeo = new THREE.SphereGeometry(0.28, 12, 10);
     const headMat = new THREE.MeshStandardMaterial({ color: skinColor });
     const head = new THREE.Mesh(headGeo, headMat);
     head.position.y = 1.42;
     head.castShadow = true;
-    this.character.add(head);
+    headGroup.add(head);
 
     // Hair (cap/helmet shape covering top of head)
     const hairGeo = new THREE.SphereGeometry(0.30, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
     const hairMat = new THREE.MeshStandardMaterial({ color: hairColor });
     const hair = new THREE.Mesh(hairGeo, hairMat);
     hair.position.y = 1.44;
-    this.character.add(hair);
+    headGroup.add(hair);
 
     // Ponytail - a series of small spheres trailing back
-    const ponytailGroup = new THREE.Group();
     const ptMat = new THREE.MeshStandardMaterial({ color: hairColor });
     for (let i = 0; i < 5; i++) {
       const size = 0.12 - i * 0.012;
       const ptGeo = new THREE.SphereGeometry(size, 8, 6);
       const pt = new THREE.Mesh(ptGeo, ptMat);
       pt.position.set(0, 1.35 - i * 0.1, -0.25 - i * 0.12);
-      this.character.add(pt);
+      headGroup.add(pt);
     }
-    this.character.add(ponytailGroup);
 
     // Eyes
     const eyeGeo = new THREE.SphereGeometry(0.04, 6, 6);
@@ -126,7 +263,7 @@ export class Player {
     for (const side of [-0.1, 0.1]) {
       const eye = new THREE.Mesh(eyeGeo, eyeMat);
       eye.position.set(side, 1.45, 0.25);
-      this.character.add(eye);
+      headGroup.add(eye);
     }
 
     // Goggles strap
@@ -135,8 +272,15 @@ export class Player {
     for (const side of [-0.1, 0.1]) {
       const goggle = new THREE.Mesh(goggleStrapGeo, goggleMat);
       goggle.position.set(side, 1.48, 0.22);
-      this.character.add(goggle);
+      headGroup.add(goggle);
     }
+
+    // On snowboard, body is rotated 90°, so counter-rotate head to look forward
+    if (this.currentVehicle === 'snowboard') {
+      headGroup.rotation.y = -Math.PI / 2;
+    }
+
+    this.character.add(headGroup);
 
     // Arms
     const armGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
@@ -179,6 +323,12 @@ export class Player {
     }
 
     this.character.position.y = 0.15;
+
+    // Snowboard stance: body sideways, head turned to face forward
+    if (this.currentVehicle === 'snowboard') {
+      this.character.rotation.y = Math.PI / 2;
+    }
+
     this.group.add(this.character);
   }
 
@@ -190,6 +340,9 @@ export class Player {
     this.jumpVelocity = 0;
     this.group.position.set(0, this.groundY, 0);
     this.character.scale.copy(this.normalCharacterScale);
+    if (this.currentVehicle !== 'bobsled') {
+      this.switchVehicle('bobsled');
+    }
   }
 
   handleInput(input: PlayerInput) {
