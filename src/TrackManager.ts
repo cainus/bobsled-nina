@@ -316,7 +316,7 @@ export class TrackManager {
     trunk.castShadow = true;
     tree.add(trunk);
 
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
     for (let i = 0; i < 3; i++) {
       const coneGeo = new THREE.ConeGeometry(1.8 - i * 0.4, 2.2, 8);
       const cone = new THREE.Mesh(coneGeo, leafMat);

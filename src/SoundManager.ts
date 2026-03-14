@@ -240,6 +240,12 @@ export class SoundManager {
     this.windActive = true;
   }
 
+  setWindVolume(vol: number) {
+    if (this.windGain) {
+      this.windGain.gain.linearRampToValueAtTime(vol, this.ctx!.currentTime + 0.5);
+    }
+  }
+
   reset() {
     this.stopSliding();
     if (this.windSource) {

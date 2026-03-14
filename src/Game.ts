@@ -41,6 +41,13 @@ export class Game {
   private powerups: { mesh: THREE.Group; active: boolean }[] = [];
   private powerupSpawnTimer = 0;
 
+  // Environment transitions
+  private isNight = false;
+  private isBlizzard = false;
+  private stars: THREE.Points | null = null;
+  private ambientLight!: THREE.AmbientLight;
+  private sunLight!: THREE.DirectionalLight;
+
   // Dynamic steepness (always downhill)
   private steepness = 0.5; // 0 = gentle, 1 = steep
   private steepnessTarget = 0.5;
@@ -90,10 +97,11 @@ export class Game {
   }
 
   private setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    this.scene.add(ambient);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    this.scene.add(this.ambientLight);
 
-    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const sun = this.sunLight;
     sun.position.set(10, 20, -5);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
@@ -281,6 +289,87 @@ export class Game {
     this.nextBearScore = 0;
   }
 
+  private updateEnvironment() {
+    // Blizzard: 6000-7000 points — heavy snow, loud wind
+    if (this.score >= 6000 && this.score < 7000) {
+      if (!this.isBlizzard) {
+        this.isBlizzard = true;
+        this.soundManager.setWindVolume(0.45);
+      }
+    } else if (this.isBlizzard) {
+      this.isBlizzard = false;
+      this.soundManager.setWindVolume(0.18);
+    }
+
+    // Night: 5000-10000 points
+    if (this.score >= 5000 && this.score < 10000) {
+      if (!this.isNight) {
+        this.isNight = true;
+        this.createStars();
+      }
+      // Gradual transition to night
+      const nightProgress = Math.min((this.score - 5000) / 1000, 1);
+      const bgR = 0x87 * (1 - nightProgress * 0.85);
+      const bgG = 0xce * (1 - nightProgress * 0.85);
+      const bgB = 0xeb * (1 - nightProgress * 0.7);
+      const bgColor = new THREE.Color(bgR / 255, bgG / 255, bgB / 255);
+      this.scene.background = bgColor;
+      this.scene.fog = new THREE.Fog(bgColor, 60, 140);
+      this.ambientLight.intensity = 0.6 - nightProgress * 0.35;
+      this.sunLight.intensity = 1.0 - nightProgress * 0.7;
+      this.sunLight.color.setHex(
+        nightProgress > 0.5 ? 0x8888cc : 0xffffff
+      );
+    } else if (this.score >= 10000 && this.isNight) {
+      // Transition back to day
+      this.isNight = false;
+      this.scene.background = new THREE.Color(0x87ceeb);
+      this.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
+      this.ambientLight.intensity = 0.6;
+      this.sunLight.intensity = 1.0;
+      this.sunLight.color.setHex(0xffffff);
+      if (this.stars) {
+        this.scene.remove(this.stars);
+        this.stars = null;
+      }
+    }
+  }
+
+  private createStars() {
+    if (this.stars) return;
+    const starCount = 500;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 300;
+      positions[i * 3 + 1] = 30 + Math.random() * 70;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 300;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.5,
+      transparent: true,
+      opacity: 0.8,
+    });
+    this.stars = new THREE.Points(geo, mat);
+    this.scene.add(this.stars);
+  }
+
+  private resetEnvironment() {
+    this.isNight = false;
+    this.isBlizzard = false;
+    this.scene.background = new THREE.Color(0x87ceeb);
+    this.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
+    this.ambientLight.intensity = 0.6;
+    this.sunLight.intensity = 1.0;
+    this.sunLight.color.setHex(0xffffff);
+    if (this.stars) {
+      this.scene.remove(this.stars);
+      this.stars = null;
+    }
+  }
+
   private resetPowerups() {
     for (const pu of this.powerups) {
       this.scene.remove(pu.mesh);
@@ -322,6 +411,7 @@ export class Game {
     this.soundManager.reset();
     this.resetBears();
     this.resetPowerups();
+    this.resetEnvironment();
     this.player.reset();
     this.trackManager.reset();
     this.start();
@@ -396,6 +486,9 @@ export class Game {
     if (this.score >= 1700) {
       this.updateBears(dt);
     }
+
+    // Environment transitions
+    this.updateEnvironment();
 
     // Render
     this.renderer.render(this.scene, this.camera);

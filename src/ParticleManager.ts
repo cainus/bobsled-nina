@@ -116,9 +116,15 @@ export class ParticleManager {
   private updateSnowfall(dt: number) {
     const playerZ = this.game.player.group.position.z;
     const windy = this.game.score >= 1300;
+    const blizzard = this.game.score >= 6000 && this.game.score < 7000;
     for (const flake of this.snowflakes) {
-      flake.position.y -= (3 + Math.random() * 0.5) * dt;
-      if (windy) {
+      const fallSpeed = blizzard ? 6 + Math.random() * 2 : 3 + Math.random() * 0.5;
+      flake.position.y -= fallSpeed * dt;
+      if (blizzard) {
+        // Blizzard — very heavy sideways with chaotic movement
+        flake.position.x += (14 + Math.sin(Date.now() * 0.002 + flake.position.z) * 5) * dt;
+        flake.position.z -= (4 + Math.random() * 2) * dt;
+      } else if (windy) {
         // Strong sideways blow with gusting
         flake.position.x += (8 + Math.sin(Date.now() * 0.001 + flake.position.z) * 3) * dt;
         flake.position.z -= (2 + Math.random()) * dt;

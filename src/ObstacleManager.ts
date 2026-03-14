@@ -179,7 +179,7 @@ export class ObstacleManager {
         trunk.castShadow = true;
         group.add(trunk);
         // Foliage layers
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
         for (let i = 0; i < 3; i++) {
           const coneGeo = new THREE.ConeGeometry(1.0 - i * 0.2, 1.2, 8);
           const cone = new THREE.Mesh(coneGeo, leafMat);
@@ -292,7 +292,7 @@ export class ObstacleManager {
   private createLargeTree(): THREE.Group {
     const group = new THREE.Group();
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3527 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2a6e2a });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x254a38 });
 
     // Thick trunk
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4, 8), trunkMat);
@@ -423,7 +423,7 @@ export class ObstacleManager {
     const group = new THREE.Group();
     const lw = this.game.laneWidth;
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
 
     // Tree trunk on one side of the track
     const side = fromLeft ? -1 : 1;
