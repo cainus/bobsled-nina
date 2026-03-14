@@ -66,6 +66,7 @@ export class Game {
     this.soundManager = new SoundManager(this);
 
     this.setupLighting();
+    this.setupGround();
     this.setupResizeHandler();
 
     // Render initial frame
@@ -90,8 +91,18 @@ export class Game {
     this.scene.add(sun);
 
     // Subtle blue fill light from the sky
-    const fillLight = new THREE.HemisphereLight(0x87ceeb, 0x444444, 0.4);
+    const fillLight = new THREE.HemisphereLight(0xdce8f0, 0x444444, 0.4);
     this.scene.add(fillLight);
+  }
+
+  private setupGround() {
+    const groundGeo = new THREE.PlaneGeometry(500, 500);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.05;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
   }
 
   private setupResizeHandler() {

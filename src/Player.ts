@@ -19,6 +19,7 @@ export class Player {
   private groundY = 0.5;
 
   // Ramp launch
+  private landSoundPlayed = false;
   private wasOnUpRamp = false;
   private readonly rampLaunchForce = 8;
 
@@ -423,6 +424,7 @@ export class Player {
     }
     if (input.jump && !this.isJumping) {
       this.isJumping = true;
+      this.landSoundPlayed = false;
       this.jumpVelocity = this.jumpForce;
       this.isDucking = false;
       this.character.scale.copy(this.normalCharacterScale);
@@ -449,12 +451,19 @@ export class Player {
     const onUpRamp = this.game.laneHeightMap.isUpRamp(this.targetLane, 0);
     if (this.wasOnUpRamp && !onUpRamp && !this.isJumping) {
       this.isJumping = true;
+      this.landSoundPlayed = false;
       this.jumpVelocity = this.rampLaunchForce;
     }
     this.wasOnUpRamp = onUpRamp;
 
     // Jump physics
     if (this.isJumping) {
+      // Play land sound slightly early when about to hit ground
+      const nextY = this.group.position.y + this.jumpVelocity * dt;
+      if (this.jumpVelocity < 0 && !this.landSoundPlayed && nextY <= this.groundY + 0.3) {
+        this.game.soundManager.playLand();
+        this.landSoundPlayed = true;
+      }
       this.jumpVelocity += this.gravity * dt;
       this.group.position.y += this.jumpVelocity * dt;
       if (this.group.position.y <= this.groundY) {
@@ -468,6 +477,7 @@ export class Player {
       if (this.group.position.y > targetY + 0.1) {
         // Falling from a higher lane — apply gravity
         this.isJumping = true;
+        this.landSoundPlayed = false;
         this.jumpVelocity = 0;
       } else {
         this.group.position.y = targetY;

@@ -93,6 +93,23 @@ export class SoundManager {
     }
   }
 
+  playLand() {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // Low thump — short burst of low frequency
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
   playCollect() {
     const ctx = this.ensureContext();
     // Quick sparkly chime — two sine tones in rapid succession

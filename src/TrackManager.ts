@@ -33,8 +33,8 @@ export class TrackManager {
       metalness: 0.2,
       roughness: 0.3,
     });
-    this.laneColors = [0xc2dff0, 0xd6eef8, 0xc2dff0];
-    this.dividerMat = new THREE.MeshStandardMaterial({ color: 0x5599cc });
+    this.laneColors = [0xe8eff4, 0xf0f5f8, 0xe8eff4];
+    this.dividerMat = new THREE.MeshStandardMaterial({ color: 0x99bbcc });
 
     this.spawnInitialChunks();
   }
