@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bobsled Niña</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    canvas { display: block; }
+    #ui-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+    }
+    #score {
+      position: absolute;
+      top: 20px; right: 30px;
+      color: #fff;
+      font-size: 32px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    }
+    #coins-display {
+      position: absolute;
+      top: 60px; right: 30px;
+      color: #ffd700;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    }
+    #start-screen, #game-over-screen {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.7);
+      pointer-events: all;
+    }
+    #game-over-screen { display: none; }
+    h1 {
+      font-size: 72px;
+      color: #fff;
+      text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+      margin-bottom: 10px;
+    }
+    h1 span { color: #ff6b9d; }
+    .subtitle {
+      color: #aad4ff;
+      font-size: 22px;
+      margin-bottom: 40px;
+    }
+    .btn {
+      padding: 16px 48px;
+      font-size: 24px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #ff6b9d, #c44dff);
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .btn:active { transform: scale(0.95); }
+    .controls-hint {
+      color: #888;
+      font-size: 16px;
+      margin-top: 24px;
+    }
+    #final-score {
+      font-size: 48px;
+      color: #ffd700;
+      margin: 20px 0;
+    }
+    #final-coins {
+      font-size: 28px;
+      color: #ffd700;
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui-overlay">
+    <div id="score">0</div>
+    <div id="coins-display">Coins: 0</div>
+
+    <div id="start-screen">
+      <h1>Bobsled <span>Niña</span></h1>
+      <div class="subtitle">An endless bobsled adventure!</div>
+      <button class="btn" id="start-btn">START</button>
+      <div class="controls-hint">← → or A/D to switch lanes &nbsp;|&nbsp; ↑ or W to jump &nbsp;|&nbsp; ↓ or S to duck</div>
+    </div>
+
+    <div id="game-over-screen">
+      <h1>Game Over!</h1>
+      <div id="final-score">0</div>
+      <div id="final-coins">Coins: 0</div>
+      <button class="btn" id="restart-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
