@@ -103,6 +103,46 @@ export class Game {
     ground.position.y = -0.05;
     ground.receiveShadow = true;
     this.scene.add(ground);
+
+    // Distant mountain range
+    this.createMountains();
+  }
+
+  private createMountains() {
+    const mountainMat = new THREE.MeshStandardMaterial({ color: 0x8899aa });
+    const snowPeakMat = new THREE.MeshStandardMaterial({ color: 0xf0f4f8 });
+
+    // Mountain peaks placed within fog range so they're visible but misty
+    // Camera is at z=-14, fog ends at 140 units from camera (z=126)
+    // Place mountains at z=80-120 so peaks poke through the fog
+    const peaks = [
+      { x: -70, z: 100, size: 40, height: 60 },
+      { x: -25, z: 115, size: 50, height: 80 },
+      { x: 30, z: 105, size: 45, height: 70 },
+      { x: 80, z: 110, size: 55, height: 85 },
+      { x: -110, z: 95, size: 45, height: 55 },
+      { x: 120, z: 100, size: 40, height: 50 },
+      { x: -50, z: 120, size: 60, height: 55 },
+      { x: 55, z: 120, size: 50, height: 50 },
+    ];
+
+    for (const peak of peaks) {
+      // Mountain body
+      const geo = new THREE.ConeGeometry(peak.size, peak.height, 7);
+      const mountain = new THREE.Mesh(geo, mountainMat);
+      mountain.position.set(peak.x, peak.height / 2 - 8, peak.z);
+      mountain.rotation.y = Math.random() * Math.PI;
+      this.scene.add(mountain);
+
+      // Snow cap on upper portion
+      const capSize = peak.size * 0.5;
+      const capHeight = peak.height * 0.4;
+      const capGeo = new THREE.ConeGeometry(capSize, capHeight, 7);
+      const cap = new THREE.Mesh(capGeo, snowPeakMat);
+      cap.position.set(peak.x, peak.height - 8 - capHeight / 2, peak.z);
+      cap.rotation.y = mountain.rotation.y;
+      this.scene.add(cap);
+    }
   }
 
   private setupResizeHandler() {

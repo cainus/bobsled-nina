@@ -428,6 +428,7 @@ export class Player {
       this.jumpVelocity = this.jumpForce;
       this.isDucking = false;
       this.character.scale.copy(this.normalCharacterScale);
+      this.game.soundManager.playGrunt();
     }
     if (input.duck && !this.isJumping) {
       this.isDucking = true;

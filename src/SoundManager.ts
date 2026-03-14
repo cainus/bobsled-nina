@@ -93,6 +93,42 @@ export class SoundManager {
     }
   }
 
+  playGrunt() {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // 3 grunt variants — short high-pitched "hup!" sounds
+    const variant = Math.floor(Math.random() * 3);
+
+    // Higher frequencies for a young girl's voice
+    const configs = [
+      { freq: 480, rise: 580, dur: 0.08 },  // quick "hup!"
+      { freq: 520, rise: 620, dur: 0.07 },  // short "ha!"
+      { freq: 450, rise: 560, dur: 0.09 },  // soft "heh!"
+    ];
+    const cfg = configs[variant];
+
+    // Two harmonics for a more vocal sound
+    for (const harmonic of [1, 2]) {
+      const osc = ctx.createOscillator();
+      osc.type = harmonic === 1 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(cfg.freq * harmonic, now);
+      osc.frequency.linearRampToValueAtTime(cfg.rise * harmonic, now + cfg.dur * 0.3);
+      osc.frequency.linearRampToValueAtTime(cfg.freq * harmonic * 0.8, now + cfg.dur);
+
+      const gain = ctx.createGain();
+      const vol = harmonic === 1 ? 0.18 : 0.06;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(vol, now + 0.01);
+      gain.gain.linearRampToValueAtTime(vol * 0.8, now + cfg.dur * 0.5);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + cfg.dur);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + cfg.dur + 0.01);
+    }
+  }
+
   playLand() {
     const ctx = this.ensureContext();
     const now = ctx.currentTime;

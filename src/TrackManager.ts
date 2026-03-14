@@ -191,35 +191,46 @@ export class TrackManager {
     }
 
     // Decorative snow mounds
-    if (Math.random() > 0.3) {
-      const moundGeo = new THREE.SphereGeometry(
-        3 + Math.random() * 4, 8, 6,
-        0, Math.PI * 2, 0, Math.PI / 2
-      );
-      for (const side of [-1, 1]) {
-        if (Math.random() > 0.5) {
-          const mound = new THREE.Mesh(moundGeo, this.snowMat);
-          mound.position.set(
-            side * (12 + Math.random() * 8),
-            0,
-            Math.random() * CHUNK_LENGTH
-          );
-          chunk.add(mound);
-        }
+    for (const side of [-1, 1]) {
+      if (Math.random() > 0.3) {
+        const moundGeo = new THREE.SphereGeometry(
+          3 + Math.random() * 4, 8, 6,
+          0, Math.PI * 2, 0, Math.PI / 2
+        );
+        const mound = new THREE.Mesh(moundGeo, this.snowMat);
+        mound.position.set(
+          side * (12 + Math.random() * 8),
+          0,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(mound);
       }
     }
 
-    // Pine trees
-    if (Math.random() > 0.4) {
-      for (let i = 0; i < 2; i++) {
+    // Pine trees — more dense, multiple per side
+    for (const side of [-1, 1]) {
+      const treeCount = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < treeCount; i++) {
         const tree = this.createTree();
-        const side = Math.random() > 0.5 ? 1 : -1;
         tree.position.set(
-          side * (10 + Math.random() * 10),
+          side * (9 + Math.random() * 20),
           0,
           Math.random() * CHUNK_LENGTH
         );
         chunk.add(tree);
+      }
+    }
+
+    // Large rocks on the sides
+    for (const side of [-1, 1]) {
+      if (Math.random() > 0.4) {
+        const rock = this.createSideRock();
+        rock.position.set(
+          side * (10 + Math.random() * 12),
+          0,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(rock);
       }
     }
 
@@ -330,6 +341,41 @@ export class TrackManager {
     const scale = 0.6 + Math.random() * 0.6;
     tree.scale.setScalar(scale);
     return tree;
+  }
+
+  private createSideRock(): THREE.Group {
+    const group = new THREE.Group();
+    const colors = [0x777777, 0x666666, 0x888888, 0x6a6a6a];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
+
+    // Main boulder
+    const size = 1.5 + Math.random() * 2;
+    const main = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 1), mat);
+    main.position.y = size * 0.6;
+    main.rotation.set(Math.random() * 0.5, Math.random() * 3, Math.random() * 0.3);
+    main.scale.set(1, 0.7 + Math.random() * 0.3, 1 + Math.random() * 0.3);
+    main.castShadow = true;
+    group.add(main);
+
+    // Snow cap on top
+    const snowGeo = new THREE.SphereGeometry(size * 0.6, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.4);
+    const snow = new THREE.Mesh(snowGeo, this.snowMat);
+    snow.position.set(0, size * 1.1, 0);
+    group.add(snow);
+
+    // Optional smaller rock beside it
+    if (Math.random() > 0.4) {
+      const smallSize = size * 0.4 + Math.random() * 0.5;
+      const small = new THREE.Mesh(new THREE.DodecahedronGeometry(smallSize, 0),
+        new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.95 }));
+      small.position.set(size * 0.7, smallSize * 0.5, size * 0.3);
+      small.rotation.set(Math.random(), Math.random(), Math.random());
+      small.castShadow = true;
+      group.add(small);
+    }
+
+    return group;
   }
 
   update(dt: number) {
