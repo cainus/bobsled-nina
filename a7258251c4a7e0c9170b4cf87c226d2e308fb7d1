@@ -1,0 +1,23 @@
+src/ObstacleManager.ts
+  feb9cda35dc6318d 122-123,126-127,129,131-133,136-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "a7258251c4a7e0c9170b4cf87c226d2e308fb7d1",
+  "prompts": {
+    "feb9cda35dc6318d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7efb27d-46a6-429e-ad59-4e9fcde390a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 30,
+      "total_deletions": 12,
+      "accepted_lines": 26,
+      "overriden_lines": 0
+    }
+  }
+}
