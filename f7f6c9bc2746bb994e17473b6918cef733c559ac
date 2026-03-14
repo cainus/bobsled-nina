@@ -1,0 +1,23 @@
+src/TrackManager.ts
+  feb9cda35dc6318d 40-41,48,62,71,82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "f7f6c9bc2746bb994e17473b6918cef733c559ac",
+  "prompts": {
+    "feb9cda35dc6318d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7efb27d-46a6-429e-ad59-4e9fcde390a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 7,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
