@@ -37,14 +37,15 @@ export class TrackManager {
 
   private addChunk() {
     const chunk = new THREE.Group();
-    const z = this.nextChunkZ;
+    // Position the chunk group at the spawn Z; children use local coords (0 to CHUNK_LENGTH)
+    chunk.position.z = this.nextChunkZ;
 
     // Ice track surface (3 lanes wide)
     const trackWidth = this.game.laneWidth * 3 + 2;
     const trackGeo = new THREE.PlaneGeometry(trackWidth, CHUNK_LENGTH);
     const track = new THREE.Mesh(trackGeo, this.iceMat);
     track.rotation.x = -Math.PI / 2;
-    track.position.set(0, 0, z + CHUNK_LENGTH / 2);
+    track.position.set(0, 0, CHUNK_LENGTH / 2);
     track.receiveShadow = true;
     chunk.add(track);
 
@@ -58,7 +59,7 @@ export class TrackManager {
     for (const lx of [-this.game.laneWidth, this.game.laneWidth]) {
       const line = new THREE.Mesh(lineGeo, lineMat);
       line.rotation.x = -Math.PI / 2;
-      line.position.set(lx / 1, 0.01, z + CHUNK_LENGTH / 2);
+      line.position.set(lx, 0.01, CHUNK_LENGTH / 2);
       chunk.add(line);
     }
 
@@ -67,7 +68,7 @@ export class TrackManager {
     for (const side of [-1, 1]) {
       const wallX = side * (trackWidth / 2 + 0.3);
       const wall = new THREE.Mesh(wallGeo, this.wallMat);
-      wall.position.set(wallX, 1.0, z + CHUNK_LENGTH / 2);
+      wall.position.set(wallX, 1.0, CHUNK_LENGTH / 2);
       wall.castShadow = true;
       wall.receiveShadow = true;
       chunk.add(wall);
@@ -78,7 +79,7 @@ export class TrackManager {
     for (const side of [-1, 1]) {
       const snowX = side * (trackWidth / 2 + 1.3);
       const snow = new THREE.Mesh(snowGeo, this.snowMat);
-      snow.position.set(snowX, 2.3, z + CHUNK_LENGTH / 2);
+      snow.position.set(snowX, 2.3, CHUNK_LENGTH / 2);
       chunk.add(snow);
     }
 
@@ -96,7 +97,7 @@ export class TrackManager {
           mound.position.set(
             side * (12 + Math.random() * 8),
             0,
-            z + Math.random() * CHUNK_LENGTH
+            Math.random() * CHUNK_LENGTH
           );
           chunk.add(mound);
         }
@@ -111,7 +112,7 @@ export class TrackManager {
         tree.position.set(
           side * (10 + Math.random() * 10),
           0,
-          z + Math.random() * CHUNK_LENGTH
+          Math.random() * CHUNK_LENGTH
         );
         chunk.add(tree);
       }
