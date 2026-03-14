@@ -34,6 +34,13 @@ export class Game {
   // Lane positions: -1 = left, 0 = center, 1 = right
   readonly laneWidth = 3;
 
+  // Bobsled power-up
+  private bobsledShield = false;
+  private bobsledHitsLeft = 0;
+  private preShieldVehicle: 'skis' | 'snowboard' | 'rainbowSkis' = 'skis';
+  private powerups: { mesh: THREE.Group; active: boolean }[] = [];
+  private powerupSpawnTimer = 0;
+
   // Dynamic steepness (always downhill)
   private steepness = 0.5; // 0 = gentle, 1 = steep
   private steepnessTarget = 0.5;
@@ -274,6 +281,17 @@ export class Game {
     this.nextBearScore = 0;
   }
 
+  private resetPowerups() {
+    for (const pu of this.powerups) {
+      this.scene.remove(pu.mesh);
+    }
+    this.powerups = [];
+    this.powerupSpawnTimer = 0;
+    this.bobsledShield = false;
+    this.bobsledHitsLeft = 0;
+    document.getElementById('shield-display')!.style.display = 'none';
+  }
+
   private setupResizeHandler() {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -303,6 +321,7 @@ export class Game {
     this.particleManager.reset();
     this.soundManager.reset();
     this.resetBears();
+    this.resetPowerups();
     this.player.reset();
     this.trackManager.reset();
     this.start();
@@ -344,6 +363,9 @@ export class Game {
     this.coinManager.update(dt);
     this.particleManager.update(dt);
 
+    // Update bobsled power-ups
+    this.updatePowerups(dt);
+
     // Check collisions
     this.checkCollisions();
 
@@ -356,13 +378,13 @@ export class Game {
     document.getElementById('score')!.textContent = this.score.toString();
     document.getElementById('coins-display')!.textContent = `Snowflakes: ${this.coins}`;
 
-    // Vehicle upgrades based on score
-    if (this.score >= 1500) {
-      this.player.switchVehicle('rainbowSkis');
-    } else if (this.score >= 1000) {
-      this.player.switchVehicle('snowboard');
-    } else if (this.score >= 500) {
-      this.player.switchVehicle('skis');
+    // Vehicle upgrades based on score (skip if in bobsled power-up)
+    if (!this.bobsledShield) {
+      if (this.score >= 1500) {
+        this.player.switchVehicle('rainbowSkis');
+      } else if (this.score >= 1000) {
+        this.player.switchVehicle('snowboard');
+      }
     }
 
     // Wind at 1300 points
@@ -396,6 +418,17 @@ export class Game {
       // Shrink collision box slightly for fairness
       obstacleBox.expandByScalar(-0.15);
       if (playerBox.intersectsBox(obstacleBox)) {
+        if (this.bobsledShield) {
+          // Destroy obstacle and use a shield hit
+          obstacle.active = false;
+          this.scene.remove(obstacle.mesh);
+          this.bobsledHitsLeft--;
+          this.showShieldHit();
+          if (this.bobsledHitsLeft <= 0) {
+            this.deactivateShield();
+          }
+          continue;
+        }
         this.endGame();
         return;
       }
@@ -427,6 +460,141 @@ export class Game {
         this.soundManager.playCollect();
       }
     }
+  }
+
+  private updatePowerups(dt: number) {
+    // Spawn bobsled power-ups periodically
+    this.powerupSpawnTimer += dt;
+    if (this.powerupSpawnTimer > 12 + Math.random() * 15) {
+      this.powerupSpawnTimer = 0;
+      if (!this.bobsledShield) {
+        this.spawnPowerup();
+      }
+    }
+
+    const moveAmount = this.speed * dt;
+    const playerBox = this.player.getCollisionBox();
+
+    for (let i = this.powerups.length - 1; i >= 0; i--) {
+      const pu = this.powerups[i];
+      if (!pu.active) continue;
+      pu.mesh.position.z -= moveAmount;
+      pu.mesh.rotation.y += dt * 2;
+
+      // Check collection
+      const puBox = new THREE.Box3().setFromObject(pu.mesh);
+      if (playerBox.intersectsBox(puBox)) {
+        pu.active = false;
+        this.scene.remove(pu.mesh);
+        this.activateShield();
+        this.powerups.splice(i, 1);
+        continue;
+      }
+
+      if (pu.mesh.position.z < -15) {
+        pu.active = false;
+        this.scene.remove(pu.mesh);
+        this.powerups.splice(i, 1);
+      }
+    }
+  }
+
+  private spawnPowerup() {
+    const lane = Math.floor(Math.random() * 3) - 1;
+    const laneY = this.laneHeightMap.getHeight(lane, 100);
+    const mesh = this.createPowerupMesh();
+    mesh.position.set(lane * this.laneWidth, laneY + 0.8, 100);
+    this.scene.add(mesh);
+    this.powerups.push({ mesh, active: true });
+  }
+
+  private createPowerupMesh(): THREE.Group {
+    const group = new THREE.Group();
+    // Miniature bobsled with a glow
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xe63946,
+      emissive: 0xff4444,
+      emissiveIntensity: 0.4,
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 1.8), bodyMat);
+    body.position.y = 0.15;
+    body.castShadow = true;
+    group.add(body);
+
+    // Front curve
+    const front = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.5, 0.35, 8, 1, false, 0, Math.PI),
+      bodyMat);
+    front.rotation.x = Math.PI / 2;
+    front.rotation.z = Math.PI;
+    front.position.set(0, 0.2, 1.0);
+    group.add(front);
+
+    // Runners
+    const runnerMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.1 });
+    for (const side of [-0.4, 0.4]) {
+      const runner = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 2.0), runnerMat);
+      runner.position.set(side, -0.05, 0);
+      group.add(runner);
+    }
+
+    // Floating shield icon above
+    const shieldGeo = new THREE.OctahedronGeometry(0.3, 0);
+    const shieldMat = new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.6,
+      metalness: 0.8,
+      roughness: 0.1,
+    });
+    const shield = new THREE.Mesh(shieldGeo, shieldMat);
+    shield.position.y = 1.2;
+    group.add(shield);
+
+    group.scale.setScalar(0.8);
+    return group;
+  }
+
+  private activateShield() {
+    this.bobsledShield = true;
+    this.bobsledHitsLeft = 3;
+    const v = this.player.currentVehicle;
+    if (v !== 'bobsled') {
+      this.preShieldVehicle = v as 'skis' | 'snowboard' | 'rainbowSkis';
+    }
+    this.player.switchVehicle('bobsled');
+    this.soundManager.playCollect();
+    // Show shield indicator
+    const el = document.getElementById('shield-display')!;
+    el.style.display = 'block';
+    el.textContent = '🛷 x3';
+  }
+
+  private deactivateShield() {
+    this.bobsledShield = false;
+    this.bobsledHitsLeft = 0;
+    // Revert to appropriate vehicle for current score
+    if (this.score >= 1500) {
+      this.player.switchVehicle('rainbowSkis');
+    } else if (this.score >= 1000) {
+      this.player.switchVehicle('snowboard');
+    } else {
+      this.player.switchVehicle(this.preShieldVehicle);
+    }
+    document.getElementById('shield-display')!.style.display = 'none';
+  }
+
+  private showShieldHit() {
+    document.getElementById('shield-display')!.textContent = `🛷 x${this.bobsledHitsLeft}`;
+    const el = document.createElement('div');
+    el.textContent = 'CRASH!';
+    el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff4444;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
+    document.getElementById('ui-overlay')!.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.top = '35%';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), 600);
   }
 
   private showJumpBonus() {

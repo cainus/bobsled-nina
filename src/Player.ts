@@ -32,12 +32,12 @@ export class Player {
   private vehicle!: THREE.Group;
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
-  private currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' = 'bobsled';
+  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' = 'skis';
 
   constructor(game: Game) {
     this.game = game;
     this.group = new THREE.Group();
-    this.buildVehicle('bobsled');
+    this.buildVehicle('skis');
     this.buildCharacter();
     this.group.position.set(0, this.groundY, 0);
     game.scene.add(this.group);
@@ -410,19 +410,40 @@ export class Player {
     this.groundY = 0.5;
     this.group.position.set(0, this.groundY, 0);
     this.character.scale.copy(this.normalCharacterScale);
-    if (this.currentVehicle !== 'bobsled') {
-      this.switchVehicle('bobsled');
+    if (this.currentVehicle !== 'skis') {
+      this.switchVehicle('skis');
     }
   }
 
   handleInput(input: PlayerInput) {
+    const inBobsled = this.currentVehicle === 'bobsled';
+
     if (input.left && this.targetLane < 1) {
-      this.targetLane++;
+      const nextLane = this.targetLane + 1;
+      if (inBobsled) {
+        // Bobsled can't move to a higher lane directly — must use ramp
+        const currentH = this.game.laneHeightMap.getHeight(this.targetLane, 0);
+        const nextH = this.game.laneHeightMap.getHeight(nextLane, 0);
+        if (nextH <= currentH + 0.1) {
+          this.targetLane = nextLane;
+        }
+      } else {
+        this.targetLane = nextLane;
+      }
     }
     if (input.right && this.targetLane > -1) {
-      this.targetLane--;
+      const nextLane = this.targetLane - 1;
+      if (inBobsled) {
+        const currentH = this.game.laneHeightMap.getHeight(this.targetLane, 0);
+        const nextH = this.game.laneHeightMap.getHeight(nextLane, 0);
+        if (nextH <= currentH + 0.1) {
+          this.targetLane = nextLane;
+        }
+      } else {
+        this.targetLane = nextLane;
+      }
     }
-    if (input.jump && !this.isJumping) {
+    if (input.jump && !this.isJumping && !inBobsled) {
       this.isJumping = true;
       this.landSoundPlayed = false;
       this.jumpVelocity = this.jumpForce;
