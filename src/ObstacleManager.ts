@@ -119,20 +119,38 @@ export class ObstacleManager {
         head.position.y = 2.25;
         head.castShadow = true;
         group.add(head);
-        // Carrot nose
-        const noseGeo = new THREE.ConeGeometry(0.06, 0.3, 6);
+        // Carrot nose — big and orange, facing the player (-Z)
+        const noseGeo = new THREE.ConeGeometry(0.08, 0.45, 8);
         const noseMat = new THREE.MeshStandardMaterial({ color: 0xff6600 });
         const nose = new THREE.Mesh(noseGeo, noseMat);
-        nose.position.set(0, 2.25, 0.35);
-        nose.rotation.x = Math.PI / 2;
+        nose.position.set(0, 2.22, -0.38);
+        nose.rotation.x = -Math.PI / 2;
         group.add(nose);
-        // Eyes
+        // Eyes — coal lumps
         const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        for (const side of [-0.1, 0.1]) {
-          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), eyeMat);
-          eye.position.set(side, 2.35, 0.3);
+        for (const side of [-0.12, 0.12]) {
+          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 6), eyeMat);
+          eye.position.set(side, 2.35, -0.32);
           group.add(eye);
         }
+        // Mouth — curved line of coal dots
+        for (let i = -2; i <= 2; i++) {
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(0.03, 5, 5), eyeMat);
+          const angle = (i / 2) * 0.4;
+          dot.position.set(Math.sin(angle) * 0.15, 2.1 + Math.cos(angle) * 0.04 - 0.04, -0.33);
+          group.add(dot);
+        }
+        // Top hat
+        const hatBrimGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.04, 10);
+        const hatMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const brim = new THREE.Mesh(hatBrimGeo, hatMat);
+        brim.position.set(0, 2.55, 0);
+        group.add(brim);
+        const hatTopGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.3, 10);
+        const hatTop = new THREE.Mesh(hatTopGeo, hatMat);
+        hatTop.position.set(0, 2.72, 0);
+        hatTop.castShadow = true;
+        group.add(hatTop);
         break;
       }
 
