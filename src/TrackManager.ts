@@ -40,27 +40,32 @@ export class TrackManager {
     // Position the chunk group at the spawn Z; children use local coords (0 to CHUNK_LENGTH)
     chunk.position.z = this.nextChunkZ;
 
-    // Ice track surface (3 lanes wide)
+    // Ice track surface — 3 distinct lane strips
     const trackWidth = this.game.laneWidth * 3 + 2;
-    const trackGeo = new THREE.PlaneGeometry(trackWidth, CHUNK_LENGTH);
-    const track = new THREE.Mesh(trackGeo, this.iceMat);
-    track.rotation.x = -Math.PI / 2;
-    track.position.set(0, 0, CHUNK_LENGTH / 2);
-    track.receiveShadow = true;
-    chunk.add(track);
+    const laneColors = [0xc2dff0, 0xd6eef8, 0xc2dff0]; // left, center, right
+    const laneW = this.game.laneWidth;
+    for (let i = -1; i <= 1; i++) {
+      const laneGeo = new THREE.PlaneGeometry(laneW - 0.15, CHUNK_LENGTH);
+      const laneMat = new THREE.MeshStandardMaterial({
+        color: laneColors[i + 1],
+        metalness: 0.3,
+        roughness: 0.2,
+      });
+      const lane = new THREE.Mesh(laneGeo, laneMat);
+      lane.rotation.x = -Math.PI / 2;
+      lane.position.set(i * laneW, 0, CHUNK_LENGTH / 2);
+      lane.receiveShadow = true;
+      chunk.add(lane);
+    }
 
-    // Lane divider lines
-    const lineGeo = new THREE.PlaneGeometry(0.08, CHUNK_LENGTH);
-    const lineMat = new THREE.MeshStandardMaterial({
-      color: 0xaaccee,
-      transparent: true,
-      opacity: 0.4,
-    });
-    for (const lx of [-this.game.laneWidth, this.game.laneWidth]) {
-      const line = new THREE.Mesh(lineGeo, lineMat);
-      line.rotation.x = -Math.PI / 2;
-      line.position.set(lx, 0.01, CHUNK_LENGTH / 2);
-      chunk.add(line);
+    // Lane divider strips between lanes
+    const dividerGeo = new THREE.PlaneGeometry(0.18, CHUNK_LENGTH);
+    const dividerMat = new THREE.MeshStandardMaterial({ color: 0x5599cc });
+    for (const lx of [-laneW / 2, laneW / 2]) {
+      const divider = new THREE.Mesh(dividerGeo, dividerMat);
+      divider.rotation.x = -Math.PI / 2;
+      divider.position.set(lx, 0.01, CHUNK_LENGTH / 2);
+      chunk.add(divider);
     }
 
     // Side walls (ice/snow walls of the bobsled track)
