@@ -402,6 +402,7 @@ export class Player {
     this.isJumping = false;
     this.isDucking = false;
     this.jumpVelocity = 0;
+    this.groundY = 0.5;
     this.group.position.set(0, this.groundY, 0);
     this.character.scale.copy(this.normalCharacterScale);
     if (this.currentVehicle !== 'bobsled') {
@@ -436,6 +437,10 @@ export class Player {
     this.group.position.x += (targetX - this.group.position.x) * this.laneTransitionSpeed * dt;
     this.currentLane = this.targetLane;
 
+    // Get ground height from lane height map
+    const laneHeight = this.game.laneHeightMap.getHeight(this.targetLane, 0);
+    this.groundY = laneHeight + 0.5;
+
     // Jump physics
     if (this.isJumping) {
       this.jumpVelocity += this.gravity * dt;
@@ -444,6 +449,16 @@ export class Player {
         this.group.position.y = this.groundY;
         this.isJumping = false;
         this.jumpVelocity = 0;
+      }
+    } else {
+      // Snap/lerp to ground height (handles ramps and dropping from high to low lane)
+      const targetY = this.groundY;
+      if (this.group.position.y > targetY + 0.1) {
+        // Falling from a higher lane — apply gravity
+        this.isJumping = true;
+        this.jumpVelocity = 0;
+      } else {
+        this.group.position.y = targetY;
       }
     }
 

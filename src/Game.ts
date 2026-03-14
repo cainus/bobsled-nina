@@ -5,6 +5,7 @@ import { ObstacleManager } from './ObstacleManager';
 import { CoinManager } from './CoinManager';
 import { InputManager } from './InputManager';
 import { ParticleManager } from './ParticleManager';
+import { LaneHeightMap } from './LaneHeightMap';
 
 export class Game {
   scene: THREE.Scene;
@@ -16,6 +17,7 @@ export class Game {
   coinManager: CoinManager;
   inputManager: InputManager;
   particleManager: ParticleManager;
+  laneHeightMap: LaneHeightMap;
 
   clock: THREE.Clock;
   running = false;
@@ -52,6 +54,7 @@ export class Game {
     document.body.prepend(this.renderer.domElement);
 
     this.clock = new THREE.Clock();
+    this.laneHeightMap = new LaneHeightMap();
     this.inputManager = new InputManager();
     this.player = new Player(this);
     this.trackManager = new TrackManager(this);
@@ -108,6 +111,7 @@ export class Game {
 
   restart() {
     // Clear old objects
+    this.laneHeightMap.reset();
     this.obstacleManager.reset();
     this.coinManager.reset();
     this.particleManager.reset();

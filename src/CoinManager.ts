@@ -3,6 +3,7 @@ import type { Game } from './Game';
 
 export interface Coin {
   mesh: THREE.Mesh;
+  baseY: number;
   active: boolean;
 }
 
@@ -43,7 +44,7 @@ export class CoinManager {
       coin.mesh.position.z -= moveAmount;
       // Spin and float
       coin.mesh.rotation.y += dt * 3;
-      coin.mesh.position.y = 1.2 + Math.sin(time + coin.mesh.position.z * 0.5) * 0.15;
+      coin.mesh.position.y = coin.baseY + Math.sin(time + coin.mesh.position.z * 0.5) * 0.15;
 
       if (coin.mesh.position.z < -15) {
         coin.active = false;
@@ -60,16 +61,18 @@ export class CoinManager {
     const count = 3 + Math.floor(Math.random() * 4);
 
     for (let i = 0; i < count; i++) {
+      const coinZ = this.spawnZ + i * 2.5;
+      const laneY = this.game.laneHeightMap.getHeight(lane, coinZ);
       const mesh = new THREE.Mesh(this.coinGeo, this.coinMat);
       mesh.rotation.x = Math.PI / 2;
       mesh.position.set(
         lane * this.game.laneWidth,
-        1.2,
+        laneY + 1.2,
         this.spawnZ + i * 2.5
       );
       mesh.castShadow = true;
       this.game.scene.add(mesh);
-      this.coins.push({ mesh, active: true });
+      this.coins.push({ mesh, baseY: laneY + 1.2, active: true });
     }
   }
 

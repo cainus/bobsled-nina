@@ -12,7 +12,7 @@ type ObstacleType = 'iceBlock' | 'snowman' | 'barrier' | 'lowBar' | 'treeBranch'
 export class ObstacleManager {
   game: Game;
   obstacles: Obstacle[] = [];
-  private spawnTimer = 0;
+  private spawnTimer = -3; // 3-second grace period at start
   private spawnInterval = 1.2; // seconds between spawns
   private readonly minSpawnInterval = 0.55;
   private spawnZ = 100; // spawn distance ahead
@@ -71,9 +71,10 @@ export class ObstacleManager {
 
       for (const lane of blockedLanes) {
         const mesh = this.createObstacle(type);
+        const laneY = this.game.laneHeightMap.getHeight(lane, this.spawnZ);
         mesh.position.set(
           lane * this.game.laneWidth,
-          0,
+          laneY,
           this.spawnZ
         );
         this.game.scene.add(mesh);
@@ -267,6 +268,6 @@ export class ObstacleManager {
       this.game.scene.remove(obs.mesh);
     }
     this.obstacles = [];
-    this.spawnTimer = 0;
+    this.spawnTimer = -3;
   }
 }
