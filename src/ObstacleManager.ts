@@ -261,6 +261,7 @@ export class ObstacleManager {
         }
         break;
       }
+
     }
 
     return group;

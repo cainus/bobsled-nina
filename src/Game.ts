@@ -34,6 +34,10 @@ export class Game {
   // Lane positions: -1 = left, 0 = center, 1 = right
   readonly laneWidth = 3;
 
+  // Side bears (appear at 1700 pts, max once per 1000 pts)
+  private bears: { mesh: THREE.Group; hasGrowled: boolean }[] = [];
+  private nextBearScore = 0; // score threshold for next bear spawn
+
   constructor() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb);
@@ -145,6 +149,125 @@ export class Game {
     }
   }
 
+  private updateBears(dt: number) {
+    // Schedule first bear at a random point between 1700-2700
+    if (this.nextBearScore === 0) {
+      this.nextBearScore = 1700 + Math.floor(Math.random() * 1000);
+    }
+
+    // Spawn bear when score passes the threshold
+    if (this.score >= this.nextBearScore) {
+      this.spawnBear();
+      this.nextBearScore = this.score + 1000 + Math.floor(Math.random() * 1000);
+    }
+
+    const moveAmount = this.speed * dt;
+    for (let i = this.bears.length - 1; i >= 0; i--) {
+      const bear = this.bears[i];
+      bear.mesh.position.z -= moveAmount;
+
+      // Growl when bear is nearby
+      if (!bear.hasGrowled && bear.mesh.position.z < 15 && bear.mesh.position.z > -5) {
+        bear.hasGrowled = true;
+        this.soundManager.playGrowl();
+      }
+
+      // Remove when far behind
+      if (bear.mesh.position.z < -20) {
+        this.scene.remove(bear.mesh);
+        this.bears.splice(i, 1);
+      }
+    }
+  }
+
+  private spawnBear() {
+    const bear = this.createBear();
+    const side = Math.random() > 0.5 ? 1 : -1;
+    bear.position.set(
+      side * (8 + Math.random() * 5),
+      0,
+      100
+    );
+    // Face toward the track
+    bear.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    this.scene.add(bear);
+    this.bears.push({ mesh: bear, hasGrowled: false });
+  }
+
+  private createBear(): THREE.Group {
+    const group = new THREE.Group();
+    const furMat = new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.9 });
+    const darkFurMat = new THREE.MeshStandardMaterial({ color: 0x4a2e15, roughness: 0.95 });
+    const noseMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+    // Body — large oval
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 8), furMat);
+    body.position.y = 1.0;
+    body.scale.set(1, 0.85, 1.3);
+    body.castShadow = true;
+    group.add(body);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), furMat);
+    head.position.set(0, 1.6, -0.9);
+    head.scale.set(1, 0.9, 1);
+    head.castShadow = true;
+    group.add(head);
+
+    // Snout
+    const snout = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), darkFurMat);
+    snout.position.set(0, 1.5, -1.35);
+    snout.scale.set(1, 0.7, 1.2);
+    group.add(snout);
+
+    // Nose
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), noseMat);
+    nose.position.set(0, 1.55, -1.5);
+    group.add(nose);
+
+    // Eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    for (const side of [-0.18, 0.18]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), eyeMat);
+      eye.position.set(side, 1.7, -1.3);
+      group.add(eye);
+    }
+
+    // Ears
+    for (const side of [-0.3, 0.3]) {
+      const ear = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), darkFurMat);
+      ear.position.set(side, 2.0, -0.8);
+      group.add(ear);
+    }
+
+    // Legs — 4 stubby cylinders
+    const legGeo = new THREE.CylinderGeometry(0.18, 0.2, 0.7, 8);
+    const legPositions: [number, number][] = [[-0.45, -0.6], [0.45, -0.6], [-0.4, 0.5], [0.4, 0.5]];
+    for (const [lx, lz] of legPositions) {
+      const leg = new THREE.Mesh(legGeo, darkFurMat);
+      leg.position.set(lx, 0.35, lz);
+      leg.castShadow = true;
+      group.add(leg);
+    }
+
+    // Tail
+    const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), furMat);
+    tail.position.set(0, 1.2, 0.9);
+    group.add(tail);
+
+    // Scale up a bit — bears are big
+    group.scale.setScalar(1.4);
+    return group;
+  }
+
+  private resetBears() {
+    for (const bear of this.bears) {
+      this.scene.remove(bear.mesh);
+    }
+    this.bears = [];
+    this.nextBearScore = 0;
+  }
+
   private setupResizeHandler() {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -161,6 +284,8 @@ export class Game {
     this.speed = this.baseSpeed;
     this.clock.start();
     this.soundManager.startSliding();
+    this.soundManager.loadGrunts();
+    this.soundManager.loadGrowls();
     this.update();
   }
 
@@ -171,6 +296,7 @@ export class Game {
     this.coinManager.reset();
     this.particleManager.reset();
     this.soundManager.reset();
+    this.resetBears();
     this.player.reset();
     this.trackManager.reset();
     this.start();
@@ -221,6 +347,11 @@ export class Game {
     // Wind at 1300 points
     if (this.score >= 1300) {
       this.soundManager.startWind();
+    }
+
+    // Bears at 1700 points
+    if (this.score >= 1700) {
+      this.updateBears(dt);
     }
 
     // Render

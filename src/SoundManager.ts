@@ -15,6 +15,12 @@ export class SoundManager {
   private windSource: AudioBufferSourceNode | null = null;
   private windActive = false;
 
+  // Audio sample buffers (loaded from files)
+  private growlBuffers: AudioBuffer[] = [];
+  private growlsLoaded = false;
+  private gruntBuffers: AudioBuffer[] = [];
+  private gruntsLoaded = false;
+
   constructor(game: Game) {
     this.game = game;
   }
@@ -93,40 +99,38 @@ export class SoundManager {
     }
   }
 
-  playGrunt() {
+  async loadGrunts() {
     const ctx = this.ensureContext();
-    const now = ctx.currentTime;
-    // 3 grunt variants — short high-pitched "hup!" sounds
-    const variant = Math.floor(Math.random() * 3);
-
-    // Higher frequencies for a young girl's voice
-    const configs = [
-      { freq: 480, rise: 580, dur: 0.08 },  // quick "hup!"
-      { freq: 520, rise: 620, dur: 0.07 },  // short "ha!"
-      { freq: 450, rise: 560, dur: 0.09 },  // soft "heh!"
-    ];
-    const cfg = configs[variant];
-
-    // Two harmonics for a more vocal sound
-    for (const harmonic of [1, 2]) {
-      const osc = ctx.createOscillator();
-      osc.type = harmonic === 1 ? 'triangle' : 'sine';
-      osc.frequency.setValueAtTime(cfg.freq * harmonic, now);
-      osc.frequency.linearRampToValueAtTime(cfg.rise * harmonic, now + cfg.dur * 0.3);
-      osc.frequency.linearRampToValueAtTime(cfg.freq * harmonic * 0.8, now + cfg.dur);
-
-      const gain = ctx.createGain();
-      const vol = harmonic === 1 ? 0.18 : 0.06;
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(vol, now + 0.01);
-      gain.gain.linearRampToValueAtTime(vol * 0.8, now + cfg.dur * 0.5);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + cfg.dur);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + cfg.dur + 0.01);
+    const files = ['/sounds/grunt1.mp3', '/sounds/grunt2.mp3', '/sounds/grunt3.mp3'];
+    for (const file of files) {
+      try {
+        const response = await fetch(file);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        this.gruntBuffers.push(audioBuffer);
+      } catch {
+        // Silently skip failed loads
+      }
     }
+    this.gruntsLoaded = this.gruntBuffers.length > 0;
+  }
+
+  playGrunt() {
+    if (!this.gruntsLoaded) return;
+    const ctx = this.ensureContext();
+    const buffer = this.gruntBuffers[Math.floor(Math.random() * this.gruntBuffers.length)];
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    // Pitch up to sound younger, and only play first ~150ms
+    source.playbackRate.value = 1.4 + Math.random() * 0.2;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain.gain.setValueAtTime(0.5, ctx.currentTime + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    source.stop(ctx.currentTime + 0.18);
   }
 
   playLand() {
@@ -165,6 +169,35 @@ export class SoundManager {
       osc.start(start);
       osc.stop(start + 0.15);
     }
+  }
+
+  async loadGrowls() {
+    const ctx = this.ensureContext();
+    const files = ['/sounds/growl1.mp3', '/sounds/growl2.mp3', '/sounds/growl3.mp3'];
+    for (const file of files) {
+      try {
+        const response = await fetch(file);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        this.growlBuffers.push(audioBuffer);
+      } catch {
+        // Silently skip failed loads
+      }
+    }
+    this.growlsLoaded = this.growlBuffers.length > 0;
+  }
+
+  playGrowl() {
+    if (!this.growlsLoaded) return;
+    const ctx = this.ensureContext();
+    const buffer = this.growlBuffers[Math.floor(Math.random() * this.growlBuffers.length)];
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.7;
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
   }
 
   startWind() {

@@ -164,12 +164,6 @@ export class TrackManager {
       }
     }
 
-    // Lane dividers (at average height between adjacent lanes)
-    // Left-center divider
-    this.addDivider(chunk, -laneW / 2, startHeights, endHeights, 0, 1);
-    // Center-right divider
-    this.addDivider(chunk, laneW / 2, startHeights, endHeights, 1, 2);
-
     // Side walls
     const wallGeo = new THREE.BoxGeometry(0.6, 2.5, CHUNK_LENGTH);
     for (const side of [-1, 1]) {
