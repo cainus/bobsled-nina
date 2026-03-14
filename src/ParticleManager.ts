@@ -115,14 +115,21 @@ export class ParticleManager {
 
   private updateSnowfall(dt: number) {
     const playerZ = this.game.player.group.position.z;
+    const windy = this.game.score >= 1300;
     for (const flake of this.snowflakes) {
       flake.position.y -= (3 + Math.random() * 0.5) * dt;
-      flake.position.x += Math.sin(flake.position.y * 0.5) * 0.5 * dt;
+      if (windy) {
+        // Strong sideways blow with gusting
+        flake.position.x += (8 + Math.sin(Date.now() * 0.001 + flake.position.z) * 3) * dt;
+        flake.position.z -= (2 + Math.random()) * dt;
+      } else {
+        flake.position.x += Math.sin(flake.position.y * 0.5) * 0.5 * dt;
+      }
 
-      // Reset snowflake if it falls below ground or gets too far behind
-      if (flake.position.y < -1 || flake.position.z < playerZ - 15) {
+      // Reset snowflake if it falls below ground, gets too far behind, or blows off to the side
+      if (flake.position.y < -1 || flake.position.z < playerZ - 15 || Math.abs(flake.position.x) > 30) {
         flake.position.set(
-          (Math.random() - 0.5) * 40,
+          windy ? -20 + Math.random() * 15 : (Math.random() - 0.5) * 40,
           15 + Math.random() * 10,
           playerZ + 20 + Math.random() * 100
         );

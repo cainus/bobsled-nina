@@ -12,7 +12,7 @@ export class Player {
   private laneTransitionSpeed = 10;
 
   // Jump
-  private isJumping = false;
+  isJumping = false;
   private jumpVelocity = 0;
   private readonly jumpForce = 12;
   private readonly gravity = -30;

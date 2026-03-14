@@ -7,7 +7,7 @@ export interface Obstacle {
   active: boolean;
 }
 
-type ObstacleType = 'iceBlock' | 'snowman' | 'barrier' | 'lowBar' | 'treeBranch';
+type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowRock' | 'treeBranch';
 
 export class ObstacleManager {
   game: Game;
@@ -51,7 +51,7 @@ export class ObstacleManager {
   }
 
   private spawnObstacle() {
-    const types: ObstacleType[] = ['iceBlock', 'snowman', 'barrier', 'lowBar', 'treeBranch'];
+    const types: ObstacleType[] = ['rock', 'snowman', 'pineTree', 'lowRock', 'treeBranch'];
     const type = types[Math.floor(Math.random() * types.length)];
 
     if (type === 'treeBranch') {
@@ -87,19 +87,9 @@ export class ObstacleManager {
     const group = new THREE.Group();
 
     switch (type) {
-      case 'iceBlock': {
-        const geo = new THREE.BoxGeometry(1.8, 1.8, 1.2);
-        const mat = new THREE.MeshStandardMaterial({
-          color: 0x88ccee,
-          transparent: true,
-          opacity: 0.8,
-          metalness: 0.2,
-          roughness: 0.1,
-        });
-        const block = new THREE.Mesh(geo, mat);
-        block.position.y = 0.9;
-        block.castShadow = true;
-        group.add(block);
+      case 'rock': {
+        const variant = Math.floor(Math.random() * 4);
+        this.buildRockVariant(group, variant);
         break;
       }
 
@@ -155,51 +145,163 @@ export class ObstacleManager {
         break;
       }
 
-      case 'barrier': {
-        // Orange/yellow safety barrier
-        const barGeo = new THREE.BoxGeometry(2.2, 1.2, 0.3);
-        const barMat = new THREE.MeshStandardMaterial({ color: 0xff9800 });
-        const bar = new THREE.Mesh(barGeo, barMat);
-        bar.position.y = 0.6;
-        bar.castShadow = true;
-        group.add(bar);
-        // Stripes
-        const stripeGeo = new THREE.BoxGeometry(0.4, 1.2, 0.32);
-        const stripeMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        for (let i = -2; i <= 2; i += 2) {
-          const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-          stripe.position.set(i * 0.35, 0.6, 0);
-          group.add(stripe);
+      case 'pineTree': {
+        // Small pine tree obstacle on the track
+        const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, 1.5, 6);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = 0.75;
+        trunk.castShadow = true;
+        group.add(trunk);
+        // Foliage layers
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+        for (let i = 0; i < 3; i++) {
+          const coneGeo = new THREE.ConeGeometry(1.0 - i * 0.2, 1.2, 8);
+          const cone = new THREE.Mesh(coneGeo, leafMat);
+          cone.position.y = 1.6 + i * 0.7;
+          cone.castShadow = true;
+          group.add(cone);
         }
-        // Posts
-        const postGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.3, 6);
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
-        for (const px of [-0.9, 0.9]) {
-          const post = new THREE.Mesh(postGeo, postMat);
-          post.position.set(px, 0.65, 0);
-          group.add(post);
-        }
+        // Snow cap
+        const capGeo = new THREE.ConeGeometry(0.3, 0.4, 8);
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.position.y = 3.5;
+        group.add(cap);
         break;
       }
 
-      case 'lowBar': {
-        // Low bar that you can jump over (or duck under the high version)
-        // This is a ground-level ice ridge
-        const ridgeGeo = new THREE.BoxGeometry(2.4, 0.6, 0.8);
-        const ridgeMat = new THREE.MeshStandardMaterial({
-          color: 0x99ddff,
-          metalness: 0.1,
-          roughness: 0.3,
+      case 'lowRock': {
+        // Low flat rock formation — jump over it
+        const slateMat = new THREE.MeshStandardMaterial({
+          color: 0x6b6b6b,
+          roughness: 0.85,
         });
-        const ridge = new THREE.Mesh(ridgeGeo, ridgeMat);
-        ridge.position.y = 0.3;
-        ridge.castShadow = true;
-        group.add(ridge);
+        // Main flat slab
+        const slabGeo = new THREE.DodecahedronGeometry(0.7, 0);
+        const slab = new THREE.Mesh(slabGeo, slateMat);
+        slab.position.y = 0.25;
+        slab.scale.set(1.8, 0.4, 1.2);
+        slab.rotation.set(0.1, 0.5, 0.05);
+        slab.castShadow = true;
+        group.add(slab);
+        // A couple of smaller rocks beside it
+        for (const offset of [-0.6, 0.5]) {
+          const pebbleGeo = new THREE.DodecahedronGeometry(0.3, 0);
+          const pebble = new THREE.Mesh(pebbleGeo, new THREE.MeshStandardMaterial({
+            color: 0x7a7a7a,
+            roughness: 0.9,
+          }));
+          pebble.position.set(offset, 0.18, 0.2 * Math.sign(offset));
+          pebble.rotation.set(Math.random(), Math.random(), Math.random());
+          pebble.scale.set(1, 0.5, 1);
+          pebble.castShadow = true;
+          group.add(pebble);
+        }
+        // Snow patches
+        const snowPatchGeo = new THREE.SphereGeometry(0.35, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.35);
+        const snowPatchMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+        const snowPatch = new THREE.Mesh(snowPatchGeo, snowPatchMat);
+        snowPatch.position.set(0.1, 0.45, 0);
+        group.add(snowPatch);
         break;
       }
     }
 
     return group;
+  }
+
+  private buildRockVariant(group: THREE.Group, variant: number) {
+    const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+
+    switch (variant) {
+      case 0: {
+        // Tall boulder with smaller rock on top
+        const mat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.9 });
+        const main = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9, 0), mat);
+        main.position.y = 0.9;
+        main.rotation.set(0.3, 0.7, 0.2);
+        main.scale.set(1, 0.85, 1.1);
+        main.castShadow = true;
+        group.add(main);
+        const top = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45, 0),
+          new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.95 }));
+        top.position.set(0.2, 1.6, 0.1);
+        top.rotation.set(0.5, 1.2, 0.4);
+        top.castShadow = true;
+        group.add(top);
+        const snow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.5, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
+        snow.position.set(0, 1.7, 0);
+        group.add(snow);
+        break;
+      }
+      case 1: {
+        // Wide granite slab — dark gray, broad and squat
+        const mat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.85 });
+        const slab = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0, 1), mat);
+        slab.position.y = 0.7;
+        slab.scale.set(1.4, 0.7, 1.0);
+        slab.rotation.set(0.15, 0.9, 0.1);
+        slab.castShadow = true;
+        group.add(slab);
+        // Crack detail — thin dark strip
+        const crackMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 1.0 });
+        const crack = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 0.8), crackMat);
+        crack.position.set(0.1, 0.7, 0);
+        crack.rotation.y = 0.3;
+        group.add(crack);
+        // Snow streak
+        const snow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.6, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.3), snowCapMat);
+        snow.position.set(-0.1, 1.15, 0.1);
+        group.add(snow);
+        break;
+      }
+      case 2: {
+        // Rock cluster — 3 medium rocks grouped together
+        const colors = [0x8a8a8a, 0x6e6e6e, 0x7a7a7a];
+        const positions: [number, number, number][] = [[0, 0.65, 0], [-0.5, 0.5, 0.3], [0.45, 0.55, -0.2]];
+        const sizes = [0.65, 0.5, 0.55];
+        for (let i = 0; i < 3; i++) {
+          const mat = new THREE.MeshStandardMaterial({ color: colors[i], roughness: 0.9 });
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(sizes[i], 0), mat);
+          rock.position.set(...positions[i]);
+          rock.rotation.set(i * 1.1, i * 0.8, i * 0.5);
+          rock.castShadow = true;
+          group.add(rock);
+        }
+        // Snow on the tallest one
+        const snow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.35, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
+        snow.position.set(0, 1.15, 0);
+        group.add(snow);
+        break;
+      }
+      case 3: {
+        // Jagged spire — tall and narrow, reddish-brown
+        const mat = new THREE.MeshStandardMaterial({ color: 0x8b6b4a, roughness: 0.8 });
+        const spire = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.2, 5), mat);
+        spire.position.y = 1.1;
+        spire.rotation.set(0.1, 0.4, 0.15);
+        spire.castShadow = true;
+        group.add(spire);
+        // Base rubble
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0x7a6040, roughness: 0.9 });
+        const base = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5, 0), baseMat);
+        base.position.set(0.3, 0.35, 0.2);
+        base.scale.set(1.2, 0.6, 1.0);
+        base.rotation.set(0.3, 1.5, 0);
+        base.castShadow = true;
+        group.add(base);
+        // Snow on spire tip
+        const snow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.25, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
+        snow.position.set(0.05, 2.2, 0);
+        group.add(snow);
+        break;
+      }
+    }
   }
 
   private createTreeBranch(numLanes: number, fromLeft: boolean): { group: THREE.Group; collider: THREE.Object3D } {

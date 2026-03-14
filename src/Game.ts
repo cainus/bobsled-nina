@@ -5,6 +5,7 @@ import { ObstacleManager } from './ObstacleManager';
 import { CoinManager } from './CoinManager';
 import { InputManager } from './InputManager';
 import { ParticleManager } from './ParticleManager';
+import { SoundManager } from './SoundManager';
 import { LaneHeightMap } from './LaneHeightMap';
 
 export class Game {
@@ -17,6 +18,7 @@ export class Game {
   coinManager: CoinManager;
   inputManager: InputManager;
   particleManager: ParticleManager;
+  soundManager: SoundManager;
   laneHeightMap: LaneHeightMap;
 
   clock: THREE.Clock;
@@ -61,6 +63,7 @@ export class Game {
     this.obstacleManager = new ObstacleManager(this);
     this.coinManager = new CoinManager(this);
     this.particleManager = new ParticleManager(this);
+    this.soundManager = new SoundManager(this);
 
     this.setupLighting();
     this.setupResizeHandler();
@@ -106,6 +109,7 @@ export class Game {
     this.coins = 0;
     this.speed = this.baseSpeed;
     this.clock.start();
+    this.soundManager.startSliding();
     this.update();
   }
 
@@ -115,6 +119,7 @@ export class Game {
     this.obstacleManager.reset();
     this.coinManager.reset();
     this.particleManager.reset();
+    this.soundManager.reset();
     this.player.reset();
     this.trackManager.reset();
     this.start();
@@ -144,6 +149,10 @@ export class Game {
     // Check collisions
     this.checkCollisions();
 
+    // Update sound
+    this.soundManager.setSlidingMuted(this.player.isJumping);
+    this.soundManager.updateSlidingPitch(this.speed);
+
     // Update score (distance-based)
     this.score += Math.round(this.speed * dt);
     document.getElementById('score')!.textContent = this.score.toString();
@@ -156,6 +165,11 @@ export class Game {
       this.player.switchVehicle('snowboard');
     } else if (this.score >= 500) {
       this.player.switchVehicle('skis');
+    }
+
+    // Wind at 1300 points
+    if (this.score >= 1300) {
+      this.soundManager.startWind();
     }
 
     // Render
@@ -200,6 +214,7 @@ export class Game {
   private endGame() {
     this.gameOver = true;
     this.running = false;
+    this.soundManager.reset();
     document.getElementById('game-over-screen')!.style.display = 'flex';
     document.getElementById('final-score')!.textContent = this.score.toString();
     document.getElementById('final-coins')!.textContent = `Coins: ${this.coins}`;
