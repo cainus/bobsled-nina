@@ -146,7 +146,9 @@ export class Game {
     document.getElementById('coins-display')!.textContent = `Coins: ${this.coins}`;
 
     // Vehicle upgrades based on score
-    if (this.score >= 1000) {
+    if (this.score >= 1500) {
+      this.player.switchVehicle('rainbowSkis');
+    } else if (this.score >= 1000) {
       this.player.switchVehicle('snowboard');
     } else if (this.score >= 500) {
       this.player.switchVehicle('skis');
@@ -166,7 +168,10 @@ export class Game {
     // Check obstacles
     for (const obstacle of this.obstacleManager.obstacles) {
       if (!obstacle.active) continue;
-      const obstacleBox = new THREE.Box3().setFromObject(obstacle.mesh);
+      // Force world matrix update so child colliders have correct positions
+      obstacle.mesh.updateMatrixWorld(true);
+      const colliderObj = obstacle.collider ?? obstacle.mesh;
+      const obstacleBox = new THREE.Box3().setFromObject(colliderObj);
       // Shrink collision box slightly for fairness
       obstacleBox.expandByScalar(-0.15);
       if (playerBox.intersectsBox(obstacleBox)) {

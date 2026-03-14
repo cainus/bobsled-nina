@@ -3,10 +3,11 @@ import type { Game } from './Game';
 
 export interface Obstacle {
   mesh: THREE.Object3D;
+  collider?: THREE.Object3D; // if set, use this for collision instead of mesh
   active: boolean;
 }
 
-type ObstacleType = 'iceBlock' | 'snowman' | 'barrier' | 'lowBar';
+type ObstacleType = 'iceBlock' | 'snowman' | 'barrier' | 'lowBar' | 'treeBranch';
 
 export class ObstacleManager {
   game: Game;
@@ -50,24 +51,34 @@ export class ObstacleManager {
   }
 
   private spawnObstacle() {
-    // Pick 1-2 lanes to block
-    const lanes = [-1, 0, 1];
-    const numBlocked = Math.random() > 0.6 ? 2 : 1;
-    const shuffled = lanes.sort(() => Math.random() - 0.5);
-    const blockedLanes = shuffled.slice(0, numBlocked);
-
-    const types: ObstacleType[] = ['iceBlock', 'snowman', 'barrier', 'lowBar'];
+    const types: ObstacleType[] = ['iceBlock', 'snowman', 'barrier', 'lowBar', 'treeBranch'];
     const type = types[Math.floor(Math.random() * types.length)];
 
-    for (const lane of blockedLanes) {
-      const mesh = this.createObstacle(type);
-      mesh.position.set(
-        lane * this.game.laneWidth,
-        0,
-        this.spawnZ
-      );
-      this.game.scene.add(mesh);
-      this.obstacles.push({ mesh, active: true });
+    if (type === 'treeBranch') {
+      // Tree branch spans 1-2 lanes from one side — must duck under
+      const numLanes = Math.random() > 0.5 ? 2 : 1;
+      const fromLeft = Math.random() > 0.5;
+      const { group, collider } = this.createTreeBranch(numLanes, fromLeft);
+      group.position.set(0, 0, this.spawnZ);
+      this.game.scene.add(group);
+      this.obstacles.push({ mesh: group, collider, active: true });
+    } else {
+      // Pick 1-2 lanes to block
+      const lanes = [-1, 0, 1];
+      const numBlocked = Math.random() > 0.6 ? 2 : 1;
+      const shuffled = lanes.sort(() => Math.random() - 0.5);
+      const blockedLanes = shuffled.slice(0, numBlocked);
+
+      for (const lane of blockedLanes) {
+        const mesh = this.createObstacle(type);
+        mesh.position.set(
+          lane * this.game.laneWidth,
+          0,
+          this.spawnZ
+        );
+        this.game.scene.add(mesh);
+        this.obstacles.push({ mesh, active: true });
+      }
     }
   }
 
@@ -170,6 +181,67 @@ export class ObstacleManager {
     }
 
     return group;
+  }
+
+  private createTreeBranch(numLanes: number, fromLeft: boolean): { group: THREE.Group; collider: THREE.Object3D } {
+    const group = new THREE.Group();
+    const lw = this.game.laneWidth;
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+
+    // Tree trunk on one side of the track
+    const side = fromLeft ? -1 : 1;
+    const trunkX = side * (lw * 1.5 + 1.5);
+    const trunkGeo = new THREE.CylinderGeometry(0.4, 0.5, 6, 8);
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.set(trunkX, 3, 0);
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    // Foliage on the trunk
+    for (let i = 0; i < 2; i++) {
+      const foliageGeo = new THREE.SphereGeometry(1.2 + i * 0.3, 8, 6);
+      const foliage = new THREE.Mesh(foliageGeo, leafMat);
+      foliage.position.set(trunkX, 5 + i * 1.2, 0);
+      foliage.castShadow = true;
+      group.add(foliage);
+    }
+
+    // Overhanging branch — extends across 1-2 lanes
+    // Branch sits at y ~1.8 so standing players hit it, ducking players pass under
+    const branchLength = numLanes * lw + 1;
+    const branchX = trunkX + (-side * branchLength / 2);
+    const branchGeo = new THREE.CylinderGeometry(0.15, 0.2, branchLength, 6);
+    const branch = new THREE.Mesh(branchGeo, trunkMat);
+    branch.rotation.z = Math.PI / 2; // horizontal
+    branch.position.set(branchX, 1.8, 0);
+    branch.castShadow = true;
+    group.add(branch);
+
+    // Collision box — only the branch part (not trunk/foliage)
+    // Use an invisible box matching branch dimensions for collision
+    const colliderGeo = new THREE.BoxGeometry(branchLength, 0.5, 0.8);
+    const colliderMesh = new THREE.Mesh(colliderGeo);
+    colliderMesh.visible = false;
+    colliderMesh.position.set(branchX, 1.8, 0);
+    group.add(colliderMesh);
+
+    // Leaves/snow on the branch
+    const clumpCount = numLanes * 2;
+    for (let i = 0; i < clumpCount; i++) {
+      const t = (i + 0.5) / clumpCount;
+      const cx = trunkX + (-side * branchLength * t);
+      const clumpGeo = new THREE.SphereGeometry(0.4 + Math.random() * 0.3, 6, 5);
+      const isSnow = Math.random() > 0.5;
+      const clumpMat = isSnow
+        ? new THREE.MeshStandardMaterial({ color: 0xfafafa })
+        : leafMat;
+      const clump = new THREE.Mesh(clumpGeo, clumpMat);
+      clump.position.set(cx, 2.1 + Math.random() * 0.3, (Math.random() - 0.5) * 0.5);
+      group.add(clump);
+    }
+
+    return { group, collider: colliderMesh };
   }
 
   reset() {

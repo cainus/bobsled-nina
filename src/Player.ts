@@ -27,7 +27,7 @@ export class Player {
   private vehicle!: THREE.Group;
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
-  private currentVehicle: 'bobsled' | 'skis' | 'snowboard' = 'bobsled';
+  private currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' = 'bobsled';
 
   constructor(game: Game) {
     this.game = game;
@@ -38,7 +38,7 @@ export class Player {
     game.scene.add(this.group);
   }
 
-  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard') {
+  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis') {
     if (this.currentVehicle === type) return;
     this.currentVehicle = type;
     // Remove old vehicle and character, rebuild
@@ -48,7 +48,7 @@ export class Player {
     this.buildCharacter();
   }
 
-  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard') {
+  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis') {
     this.vehicle = new THREE.Group();
 
     switch (type) {
@@ -60,6 +60,9 @@ export class Player {
         break;
       case 'snowboard':
         this.buildSnowboardParts();
+        break;
+      case 'rainbowSkis':
+        this.buildRainbowSkisParts();
         break;
     }
 
@@ -152,6 +155,67 @@ export class Player {
       this.vehicle.add(grip);
 
       // Pole basket (small disc near bottom)
+      const basketGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8);
+      const basket = new THREE.Mesh(basketGeo, basketMat);
+      basket.position.set(side, 0.05, -0.15);
+      this.vehicle.add(basket);
+    }
+  }
+
+  private buildRainbowSkisParts() {
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.8, roughness: 0.2 });
+    const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00cc00, 0x0088ff, 0x8800ff];
+
+    // Two rainbow skis
+    for (const side of [-0.25, 0.25]) {
+      // Ski built from rainbow segments
+      const segLength = 2.4 / rainbowColors.length;
+      for (let i = 0; i < rainbowColors.length; i++) {
+        const segGeo = new THREE.BoxGeometry(0.18, 0.06, segLength);
+        const segMat = new THREE.MeshStandardMaterial({
+          color: rainbowColors[i],
+          metalness: 0.4,
+          roughness: 0.3,
+        });
+        const seg = new THREE.Mesh(segGeo, segMat);
+        seg.position.set(side, -0.05, -1.0 + segLength / 2 + i * segLength);
+        seg.castShadow = true;
+        this.vehicle.add(seg);
+      }
+
+      // Ski tip - gold
+      const tipGeo = new THREE.CylinderGeometry(0.02, 0.09, 0.3, 6, 1, false, 0, Math.PI);
+      const tipMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6, roughness: 0.2 });
+      const tip = new THREE.Mesh(tipGeo, tipMat);
+      tip.rotation.x = Math.PI / 2;
+      tip.rotation.z = Math.PI;
+      tip.position.set(side, 0.02, 1.5);
+      this.vehicle.add(tip);
+
+      // Binding
+      const bindingGeo = new THREE.BoxGeometry(0.2, 0.1, 0.25);
+      const binding = new THREE.Mesh(bindingGeo, metalMat);
+      binding.position.set(side, 0.03, 0);
+      this.vehicle.add(binding);
+    }
+
+    // Gold ski poles
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6, roughness: 0.2 });
+    const basketMat = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+    for (const side of [-0.55, 0.55]) {
+      const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.8, 6);
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(side, 0.7, -0.3);
+      pole.rotation.x = -0.25;
+      pole.castShadow = true;
+      this.vehicle.add(pole);
+
+      const gripGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.15, 6);
+      const grip = new THREE.Mesh(gripGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
+      grip.position.set(side, 1.55, -0.5);
+      grip.rotation.x = -0.25;
+      this.vehicle.add(grip);
+
       const basketGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8);
       const basket = new THREE.Mesh(basketGeo, basketMat);
       basket.position.set(side, 0.05, -0.15);
