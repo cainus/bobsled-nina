@@ -14,6 +14,13 @@ export class ParticleManager {
   // Snow spray particles behind the sled
   private sprayTimer = 0;
 
+  // Snowfall system
+  private snowflakes: THREE.Mesh[] = [];
+  private snowActive = false;
+  private snowGeo = new THREE.SphereGeometry(0.08, 4, 4);
+  private snowflakeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+  private readonly SNOWFLAKE_COUNT = 300;
+
   private smallGeo = new THREE.SphereGeometry(0.06, 4, 4);
   private snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private goldMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
@@ -23,6 +30,16 @@ export class ParticleManager {
   }
 
   update(dt: number) {
+    // Start snowfall at 1000 points
+    if (!this.snowActive && this.game.score >= 1000) {
+      this.startSnowfall();
+    }
+
+    // Update snowflakes
+    if (this.snowActive) {
+      this.updateSnowfall(dt);
+    }
+
     // Spawn snow spray behind sled
     this.sprayTimer += dt;
     if (this.sprayTimer > 0.03) {
@@ -81,10 +98,47 @@ export class ParticleManager {
     }
   }
 
+  private startSnowfall() {
+    this.snowActive = true;
+    const playerZ = this.game.player.group.position.z;
+    for (let i = 0; i < this.SNOWFLAKE_COUNT; i++) {
+      const mesh = new THREE.Mesh(this.snowGeo, this.snowflakeMat);
+      mesh.position.set(
+        (Math.random() - 0.5) * 40,
+        5 + Math.random() * 20,
+        playerZ + Math.random() * 120
+      );
+      this.game.scene.add(mesh);
+      this.snowflakes.push(mesh);
+    }
+  }
+
+  private updateSnowfall(dt: number) {
+    const playerZ = this.game.player.group.position.z;
+    for (const flake of this.snowflakes) {
+      flake.position.y -= (3 + Math.random() * 0.5) * dt;
+      flake.position.x += Math.sin(flake.position.y * 0.5) * 0.5 * dt;
+
+      // Reset snowflake if it falls below ground or gets too far behind
+      if (flake.position.y < -1 || flake.position.z < playerZ - 15) {
+        flake.position.set(
+          (Math.random() - 0.5) * 40,
+          15 + Math.random() * 10,
+          playerZ + 20 + Math.random() * 100
+        );
+      }
+    }
+  }
+
   reset() {
     for (const p of this.particles) {
       this.game.scene.remove(p.mesh);
     }
     this.particles = [];
+    for (const f of this.snowflakes) {
+      this.game.scene.remove(f);
+    }
+    this.snowflakes = [];
+    this.snowActive = false;
   }
 }

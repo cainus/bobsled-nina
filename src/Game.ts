@@ -38,13 +38,13 @@ export class Game {
     this.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
 
     this.camera = new THREE.PerspectiveCamera(
-      65,
+      70,
       window.innerWidth / window.innerHeight,
       0.1,
       200
     );
-    this.camera.position.set(0, 8, -12);
-    this.camera.lookAt(0, 2, 20);
+    this.camera.position.set(0, 12, -14);
+    this.camera.lookAt(0, 0, 25);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
