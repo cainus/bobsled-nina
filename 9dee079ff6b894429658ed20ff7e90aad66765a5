@@ -1,0 +1,51 @@
+src/Player.ts
+  ed24b2cc852edc7c 662-665,704-706
+src/Game.ts
+  ed24b2cc852edc7c 1420,1422-1423
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "9dee079ff6b894429658ed20ff7e90aad66765a5",
+  "prompts": {
+    "9e38252d648666e1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19fef610-71ae-4e2d-9309-17f7fd96c298",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 302,
+      "total_deletions": 219,
+      "accepted_lines": 142,
+      "overriden_lines": 0
+    },
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 2304,
+      "total_deletions": 1,
+      "accepted_lines": 2303,
+      "overriden_lines": 0
+    },
+    "ed7d2a488e7fed10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9027e775-1b63-49d0-99f4-0ec4bec4a3a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 60,
+      "total_deletions": 18,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
