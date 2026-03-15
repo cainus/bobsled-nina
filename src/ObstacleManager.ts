@@ -7,6 +7,7 @@ export interface Obstacle {
   active: boolean;
   jumpScored?: boolean;
   isSnowman?: boolean;
+  isPineTree?: boolean;
 }
 
 type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree';
@@ -75,7 +76,7 @@ export class ObstacleManager {
       const tree = this.createLargeTree();
       tree.position.set(centerX, laneY, this.spawnZ);
       this.game.scene.add(tree);
-      this.obstacles.push({ mesh: tree, active: true });
+      this.obstacles.push({ mesh: tree, active: true, isPineTree: true });
       return;
     }
 
@@ -106,7 +107,11 @@ export class ObstacleManager {
           this.spawnZ
         );
         this.game.scene.add(mesh);
-        this.obstacles.push({ mesh, active: true, isSnowman: type === 'snowman' });
+        this.obstacles.push({
+          mesh, active: true,
+          isSnowman: type === 'snowman',
+          isPineTree: type === 'pineTree',
+        });
       }
     }
   }

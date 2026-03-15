@@ -325,8 +325,8 @@ export class Game {
       this.soundManager.setWindVolume(0.18);
     }
 
-    // Night: 5000-10000 points
-    if (this.score >= 5000 && this.score < 10000) {
+    // Night: 5000-20000 points
+    if (this.score >= 5000 && this.score < 20000) {
       if (!this.isNight) {
         this.isNight = true;
         this.createStars();
@@ -344,7 +344,7 @@ export class Game {
       this.sunLight.color.setHex(
         nightProgress > 0.5 ? 0x8888cc : 0xffffff
       );
-    } else if (this.score >= 10000 && this.isNight) {
+    } else if (this.score >= 20000 && this.isNight) {
       // Transition back to day
       this.isNight = false;
       this.scene.background = new THREE.Color(0x87ceeb);
@@ -538,7 +538,7 @@ export class Game {
       glow.position.set(0, 0.4, 1.15);
       npc.add(glow);
 
-      npc.position.set(side * 9, 0.1, 5 + side * 3);
+      npc.position.set(side * 16, 0.1, 5 + side * 3);
       this.scene.add(npc);
       this.npcSnowmobiles.push(npc);
     }
@@ -761,6 +761,7 @@ export class Game {
         if (this.bobsledShield) {
           obstacle.active = false;
           if (wasSnowman) this.explodeSnowman(obstacle.mesh, false);
+          if (obstacle.isPineTree) this.explodeTree(obstacle.mesh);
           this.scene.remove(obstacle.mesh);
           this.bobsledHitsLeft--;
           this.showShieldHit();
@@ -1312,6 +1313,50 @@ export class Game {
     document.getElementById('ui-overlay')!.appendChild(el);
     requestAnimationFrame(() => { el.style.top = '35%'; el.style.opacity = '0'; });
     setTimeout(() => el.remove(), 600);
+  }
+
+  private explodeTree(mesh: THREE.Object3D) {
+    const worldPos = new THREE.Vector3();
+    mesh.getWorldPosition(worldPos);
+    mesh.updateMatrixWorld(true);
+
+    const children = [...(mesh as THREE.Group).children];
+    for (const child of children) {
+      if (!(child instanceof THREE.Mesh)) continue;
+      const childWorld = new THREE.Vector3();
+      child.getWorldPosition(childWorld);
+
+      const debris = child.clone();
+      debris.position.copy(childWorld);
+      // Random scale variation for splinters
+      const s = 0.5 + Math.random() * 0.8;
+      debris.scale.multiplyScalar(s);
+      this.scene.add(debris);
+
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 12,
+        4 + Math.random() * 10,
+        -5 + (Math.random() - 0.5) * 8
+      );
+
+      const startTime = Date.now();
+      const animate = () => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed > 2.5) {
+          this.scene.remove(debris);
+          return;
+        }
+        debris.position.x += vel.x * 0.016;
+        debris.position.y += vel.y * 0.016;
+        debris.position.z += vel.z * 0.016;
+        vel.y -= 12 * 0.016;
+        debris.rotation.x += 0.15;
+        debris.rotation.y += 0.1;
+        debris.rotation.z += 0.12;
+        requestAnimationFrame(animate);
+      };
+      animate();
+    }
   }
 
   private showShieldHit() {

@@ -377,19 +377,30 @@ export class Player {
     mouth.rotation.x = Math.PI;
     headGroup.add(mouth);
 
-    // Helmet — black ski helmet
+    // Helmet — black ski helmet, open face
     const helmetMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.2 });
     const helmet = new THREE.Mesh(
-      new THREE.SphereGeometry(0.34, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6),
+      new THREE.SphereGeometry(0.34, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.45),
       helmetMat
     );
-    helmet.position.y = 1.45;
+    helmet.position.y = 1.46;
     headGroup.add(helmet);
 
-    // Helmet rim
+    // Helmet side coverage — ear guards
     const rimMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.305, 0.025, 8, 20), rimMat);
-    rim.position.set(0, 1.37, 0);
+    for (const side of [-1, 1]) {
+      const earGuard = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 8, 6, 0, Math.PI, 0, Math.PI * 0.5),
+        rimMat
+      );
+      earGuard.position.set(side * 0.28, 1.38, 0);
+      earGuard.rotation.z = side * -0.3;
+      headGroup.add(earGuard);
+    }
+
+    // Helmet rim
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.02, 8, 20), rimMat);
+    rim.position.set(0, 1.39, 0);
     rim.rotation.x = Math.PI / 2;
     headGroup.add(rim);
 
@@ -401,11 +412,35 @@ export class Player {
       headGroup.add(vent);
     }
 
-    // Ponytail — smooth chain of spheres
-    for (let i = 0; i < 6; i++) {
-      const size = 0.1 - i * 0.01;
+    // Hair peeking out from under helmet — bangs at forehead
+    const bangs = new THREE.Mesh(
+      new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.15),
+      hairMat
+    );
+    bangs.position.set(0, 1.42, 0.02);
+    headGroup.add(bangs);
+
+    // Hair at sides visible under ear guards
+    for (const side of [-0.22, 0.22]) {
+      const sideHair = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), hairMat);
+      sideHair.position.set(side, 1.32, 0.05);
+      sideHair.scale.set(1, 1.3, 0.8);
+      headGroup.add(sideHair);
+    }
+
+    // Hair covering entire back half of head — extends from helmet down to ponytail
+    const backHair = new THREE.Mesh(
+      new THREE.SphereGeometry(0.31, 14, 10, Math.PI * 0.7, Math.PI * 1.6),
+      hairMat
+    );
+    backHair.position.set(0, 1.42, 0);
+    headGroup.add(backHair);
+
+    // Ponytail — emerges from back/bottom of helmet
+    for (let i = 0; i < 7; i++) {
+      const size = 0.1 - i * 0.008;
       const pt = new THREE.Mesh(new THREE.SphereGeometry(size, 12, 10), hairMat);
-      pt.position.set(0, 1.33 - i * 0.08, -0.28 - i * 0.1);
+      pt.position.set(0, 1.28 - i * 0.08, -0.3 - i * 0.1);
       headGroup.add(pt);
     }
 
