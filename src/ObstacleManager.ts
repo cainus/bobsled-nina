@@ -8,6 +8,7 @@ export interface Obstacle {
   jumpScored?: boolean;
   isSnowman?: boolean;
   isPineTree?: boolean;
+  isBonus?: boolean;
 }
 
 type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree'
@@ -122,6 +123,7 @@ export class ObstacleManager {
           mesh, active: true,
           isSnowman: type === 'snowman',
           isPineTree: type === 'pineTree',
+          isBonus: type === 'leafPile',
         });
       }
     }

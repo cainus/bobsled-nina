@@ -25,6 +25,18 @@ export class SoundManager {
     this.game = game;
   }
 
+  suspend() {
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend();
+    }
+  }
+
+  resumeCtx() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
   private ensureContext() {
     if (!this.ctx) {
       this.ctx = new AudioContext();

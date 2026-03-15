@@ -19,6 +19,16 @@ export class CollisionManager {
       const obstacleBox = new THREE.Box3().setFromObject(colliderObj);
       obstacleBox.expandByScalar(-0.15);
       if (playerBox.intersectsBox(obstacleBox)) {
+        if (obstacle.isBonus) {
+          // Leaf piles give bonus points
+          obstacle.active = false;
+          this.game.scene.remove(obstacle.mesh);
+          this.game.score += 100;
+          this.game.particleManager.spawnCollectBurst(obstacle.mesh.position);
+          this.game.soundManager.playCollect();
+          this.showBonus('+100', '#ff8800');
+          continue;
+        }
         const result = this.game.powerupManager.handleObstacleHit(obstacle);
         if (result === 'endGame') {
           this.game.endGame();
@@ -53,6 +63,18 @@ export class CollisionManager {
         this.game.soundManager.playCollect();
       }
     }
+  }
+
+  private showBonus(text: string, color: string) {
+    const el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText = `position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:${color};font-size:36px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.6s ease-out;opacity:1;`;
+    document.getElementById('ui-overlay')!.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.top = '30%';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), 700);
   }
 
   private showJumpBonus() {

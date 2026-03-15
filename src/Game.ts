@@ -354,12 +354,14 @@ export class Game {
 
   pause() {
     this.running = false;
+    this.soundManager.suspend();
     document.getElementById('pause-screen')!.style.display = 'flex';
   }
 
   resume() {
     this.running = true;
     document.getElementById('pause-screen')!.style.display = 'none';
+    this.soundManager.resumeCtx();
     this.clock.start();
     this.update();
   }
