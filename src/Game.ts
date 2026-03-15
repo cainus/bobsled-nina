@@ -1417,8 +1417,10 @@ export class Game {
       const elapsed = (Date.now() - startTime) / 1000;
       const dt = 0.016;
 
-      // Move all track chunks back so scene scrolls
+      // Move all track chunks and obstacles back so scene scrolls
       this.trackManager.update(dt);
+      this.obstacleManager.update(dt);
+      this.coinManager.update(dt);
 
       if (!landed) {
         // Character shoots forward and up

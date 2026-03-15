@@ -659,9 +659,10 @@ export class Player {
     this.groundY = 0.5;
     this.group.position.set(0, this.groundY, 0);
     this.group.rotation.set(0, 0, 0);
-    // Rebuild vehicle and character fresh
-    if (this.vehicle) this.group.remove(this.vehicle);
-    if (this.character) this.group.remove(this.character);
+    // Remove all children (vehicle, character, and any extras like snowman hat)
+    while (this.group.children.length > 0) {
+      this.group.remove(this.group.children[0]);
+    }
     this.currentVehicle = 'skis';
     this.buildVehicle('skis');
     this.buildCharacter();
@@ -700,7 +701,9 @@ export class Player {
       this.isJumping = true;
       this.landSoundPlayed = false;
       this.doubleJumpReady = input.doubleJump;
-      this.jumpVelocity = this.jumpForce * this.jumpMultiplier;
+      const onRamp = this.game.laneHeightMap.isUpRamp(this.targetLane, 0);
+      const rampBoost = onRamp ? 2 : 1;
+      this.jumpVelocity = this.jumpForce * this.jumpMultiplier * rampBoost;
       this.isDucking = false;
       this.character.scale.copy(this.normalCharacterScale);
       this.game.soundManager.playGrunt();
