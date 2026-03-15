@@ -1,0 +1,43 @@
+src/ParticleManager.ts
+  ed24b2cc852edc7c 37-39,42-44,46-47,168-175,180-186,188
+src/TrackManager.ts
+  ed24b2cc852edc7c 3,20,43-54,67,172,183-189,191-196,198-200,210,229,231,241,266,268-376,391-394,396,404,419-420,430,438,501-599,618-620,625
+src/Player.ts
+  ed24b2cc852edc7c 40,44-46,57,67,70-71,85-90,307-504,743-748,750-752,765-789,883-885,898-900,1055-1066
+src/SeasonManager.ts
+  ed24b2cc852edc7c 1-118
+src/main.ts
+  ed24b2cc852edc7c 2,4-8,12-14,16-34,37-44,47-49,51-66
+src/Game.ts
+  ed24b2cc852edc7c 13,30,49-51,54,74,76-94,96-101,103-104,107-108,112-113,117,119,153-157,163-174,176-177,190-191,194-199,201,203,205,207,209,212-214,216-218,220-249,253-323,338-346,351,355-363,380-381,406,445,447-451,459,462-464
+index.html
+  ed24b2cc852edc7c 53,63,90,118-130,133-136
+src/PowerupManager.ts
+  ed24b2cc852edc7c 40,42-47,153-157,163-165,180,183,185,188-189,191-196,204,208,211,215,254,435-437,446,455,520-554
+src/ObstacleManager.ts
+  ed24b2cc852edc7c 14,58-70,345-507,515,517,525-526,535-536,542-543,553-558,653,665-666,696,701
+src/CoinManager.ts
+  ed24b2cc852edc7c 25-28,65-135,154,156
+src/EnvironmentManager.ts
+  ed24b2cc852edc7c 3,15,25-27,47-83,85-88,90-100,105-107,110-111,114,146-148,152-154,275-286,359-360,371-373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "474c810da81280f88a877ee75e45cf413c9f315a",
+  "prompts": {
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 1976,
+      "total_deletions": 767,
+      "accepted_lines": 1422,
+      "overriden_lines": 2
+    }
+  }
+}
