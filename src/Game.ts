@@ -1408,6 +1408,7 @@ export class Game {
     // Vehicle stays behind and scrolls back
     const vehicleWorldPos = this.player.group.position.clone();
 
+    const crashLane = this.player.targetLane;
     const vel = { x: (Math.random() - 0.5) * 3, y: 6, z: crashSpeed * 0.6 };
     const startTime = Date.now();
     let landed = false;
@@ -1422,6 +1423,9 @@ export class Game {
       this.obstacleManager.update(dt);
       this.coinManager.update(dt);
 
+      // Ground height at character's current position (follows ramps)
+      const groundY = this.laneHeightMap.getHeight(crashLane, character.position.z) + 0.15;
+
       if (!landed) {
         // Character shoots forward and up
         character.position.x += vel.x * dt;
@@ -1434,17 +1438,18 @@ export class Game {
         const spread = Math.min(elapsed * 5, 1);
         character.scale.set(1 + spread * 0.5, 1, 1);
 
-        if (character.position.y <= 0.15 && vel.y < 0) {
+        if (character.position.y <= groundY && vel.y < 0) {
           landed = true;
-          character.position.y = 0.15;
+          character.position.y = groundY;
           character.rotation.x = Math.PI / 2;
           character.scale.set(1.5, 1, 1);
           slideSpeed = crashSpeed * 0.3;
           this.soundManager.playLand();
         }
       } else {
-        // Slide along ground, decelerating
+        // Slide along ground, decelerating, following terrain height
         character.position.z += slideSpeed * dt;
+        character.position.y = this.laneHeightMap.getHeight(crashLane, character.position.z) + 0.15;
         slideSpeed *= 0.92;
       }
 
