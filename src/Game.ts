@@ -54,8 +54,16 @@ export class Game {
   // Heavy metal mode
   metalMode = false;
 
+  // Big jump
+  private nextBigJumpScore = 2000;
+  private bigRamp: THREE.Group | null = null;
+  private bigRampActive = false;
+
   // Headlight
   private headlight: THREE.SpotLight | null = null;
+
+  // NPC snowmobiles during night
+  private npcSnowmobiles: THREE.Group[] = [];
 
   // Environment transitions
   private isNight = false;
@@ -350,18 +358,43 @@ export class Game {
       }
     }
 
+    // NPC snowmobiles during night
+    if (this.isNight && this.npcSnowmobiles.length === 0) {
+      this.spawnNpcSnowmobiles();
+    }
+    if (!this.isNight && this.npcSnowmobiles.length > 0) {
+      this.removeNpcSnowmobiles();
+    }
+    // Animate NPC snowmobiles — keep them alongside the player
+    for (const npc of this.npcSnowmobiles) {
+      // Gentle bobbing and slight speed variation
+      npc.position.y = 0.1 + Math.sin(Date.now() * 0.002 + npc.position.x) * 0.05;
+    }
+
     // Snowmobile headlight in the dark
     if (this.isSnowmobile && this.isNight && !this.headlight) {
-      this.headlight = new THREE.SpotLight(0xffffcc, 2, 60, 0.4, 0.5);
-      this.headlight.position.set(0, 1.5, 1.5);
-      this.headlight.target.position.set(0, 0, 20);
+      this.headlight = new THREE.SpotLight(0xffffcc, 8, 80, 0.5, 0.3, 1);
+      this.headlight.position.set(0, 1.0, 1.8);
+      this.headlight.target.position.set(0, -1, 30);
+      this.headlight.castShadow = true;
+      this.headlight.shadow.mapSize.width = 1024;
+      this.headlight.shadow.mapSize.height = 1024;
       this.player.group.add(this.headlight);
       this.player.group.add(this.headlight.target);
+
+      // Visible headlight glow mesh
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+      const glowMesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), glowMat);
+      glowMesh.position.set(0, 0.6, 1.6);
+      glowMesh.name = 'headlightGlow';
+      this.player.group.add(glowMesh);
     }
     if (this.headlight && (!this.isSnowmobile || !this.isNight)) {
       this.player.group.remove(this.headlight.target);
       this.player.group.remove(this.headlight);
       this.headlight = null;
+      const glow = this.player.group.getObjectByName('headlightGlow');
+      if (glow) this.player.group.remove(glow);
     }
   }
 
@@ -389,6 +422,7 @@ export class Game {
   private resetEnvironment() {
     this.isNight = false;
     this.isBlizzard = false;
+    this.removeNpcSnowmobiles();
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
     this.ambientLight.intensity = 0.6;
@@ -398,6 +432,123 @@ export class Game {
       this.scene.remove(this.stars);
       this.stars = null;
     }
+  }
+
+  private spawnBigRamp() {
+    const group = new THREE.Group();
+    const trackWidth = this.laneWidth * 3 + 2;
+    const rampLength = 12;
+    const rampHeight = 4;
+
+    // Main ramp surface — spans all lanes
+    const slopeLen = Math.sqrt(rampLength * rampLength + rampHeight * rampHeight);
+    const angle = Math.atan2(rampHeight, rampLength);
+    const rampMat = new THREE.MeshStandardMaterial({ color: 0x55bbdd, metalness: 0.2, roughness: 0.3 });
+    const rampGeo = new THREE.BoxGeometry(trackWidth - 0.5, 0.3, slopeLen);
+    const ramp = new THREE.Mesh(rampGeo, rampMat);
+    ramp.position.set(0, rampHeight / 2, rampLength / 2);
+    ramp.rotation.x = -angle;
+    ramp.castShadow = true;
+    ramp.receiveShadow = true;
+    group.add(ramp);
+
+    // Side walls
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4499bb });
+    for (const side of [-1, 1]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, slopeLen), wallMat);
+      wall.position.set(side * (trackWidth / 2 - 0.1), rampHeight / 2, rampLength / 2);
+      wall.rotation.x = -angle;
+      wall.castShadow = true;
+      group.add(wall);
+    }
+
+    // Support structure underneath
+    const supportMat = new THREE.MeshStandardMaterial({ color: 0x3388aa });
+    for (let i = 0; i < 3; i++) {
+      const t = (i + 1) / 4;
+      const supportH = rampHeight * t;
+      const supportZ = rampLength * t;
+      const support = new THREE.Mesh(new THREE.BoxGeometry(trackWidth - 1, supportH, 0.3), supportMat);
+      support.position.set(0, supportH / 2, supportZ);
+      group.add(support);
+    }
+
+    // Flat launch lip at the top
+    const lipGeo = new THREE.BoxGeometry(trackWidth - 0.5, 0.3, 2);
+    const lip = new THREE.Mesh(lipGeo, rampMat);
+    lip.position.set(0, rampHeight, rampLength + 1);
+    lip.receiveShadow = true;
+    group.add(lip);
+
+    group.position.set(0, 0, 100);
+    this.scene.add(group);
+    this.bigRamp = group;
+    this.bigRampActive = true;
+  }
+
+  private spawnNpcSnowmobiles() {
+    for (const side of [-1, 1]) {
+      const npc = new THREE.Group();
+
+      // Body — yellow and black snowmobile
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xddcc00 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.2), bodyMat);
+      body.position.y = 0.2;
+      body.castShadow = true;
+      npc.add(body);
+
+      const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 1.0), blackMat);
+      seat.position.set(0, 0.5, -0.3);
+      npc.add(seat);
+
+      // Windshield
+      const shieldMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5 });
+      const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.05), shieldMat);
+      windshield.position.set(0, 0.65, 0.6);
+      windshield.rotation.x = -0.3;
+      npc.add(windshield);
+
+      // Treads
+      for (const ts of [-0.5, 0.5]) {
+        const tread = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 2.4), blackMat);
+        tread.position.set(ts, -0.05, 0);
+        npc.add(tread);
+      }
+
+      // NPC rider — simple figure
+      const riderMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const riderBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.3, 6, 10), riderMat);
+      riderBody.position.set(0, 0.85, -0.1);
+      npc.add(riderBody);
+      const riderHead = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), riderMat);
+      riderHead.position.set(0, 1.25, -0.1);
+      npc.add(riderHead);
+
+      // Headlight
+      const headlight = new THREE.SpotLight(0xffffcc, 6, 60, 0.4, 0.4, 1);
+      headlight.position.set(0, 0.5, 1.2);
+      headlight.target.position.set(0, -1, 20);
+      npc.add(headlight);
+      npc.add(headlight.target);
+
+      // Headlight glow
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+      const glow = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), glowMat);
+      glow.position.set(0, 0.4, 1.15);
+      npc.add(glow);
+
+      npc.position.set(side * 9, 0.1, 5 + side * 3);
+      this.scene.add(npc);
+      this.npcSnowmobiles.push(npc);
+    }
+  }
+
+  private removeNpcSnowmobiles() {
+    for (const npc of this.npcSnowmobiles) {
+      this.scene.remove(npc);
+    }
+    this.npcSnowmobiles = [];
   }
 
   private resetPowerups() {
@@ -423,6 +574,12 @@ export class Game {
       this.player.group.remove(this.headlight);
       this.headlight = null;
     }
+    this.nextBigJumpScore = 2000;
+    if (this.bigRamp) {
+      this.scene.remove(this.bigRamp);
+      this.bigRamp = null;
+    }
+    this.bigRampActive = false;
     this.soundManager.stopThrash();
     this.soundManager.stopMotor();
     document.getElementById('shield-display')!.style.display = 'none';
@@ -503,6 +660,26 @@ export class Game {
     this.obstacleManager.update(dt);
     this.coinManager.update(dt);
     this.particleManager.update(dt);
+
+    // Big jump every ~2000 points
+    if (this.score >= this.nextBigJumpScore && !this.bigRampActive) {
+      this.nextBigJumpScore = this.score + 1800 + Math.floor(Math.random() * 400);
+      this.spawnBigRamp();
+    }
+    if (this.bigRamp) {
+      this.bigRamp.position.z -= this.speed * dt;
+      // Launch when ramp reaches player
+      if (this.bigRampActive && this.bigRamp.position.z < 1 && !this.player.isJumping) {
+        this.player.bigLaunch();
+        this.bigRampActive = false;
+      }
+      // Remove when behind
+      if (this.bigRamp.position.z < -20) {
+        this.scene.remove(this.bigRamp);
+        this.bigRamp = null;
+        this.bigRampActive = false;
+      }
+    }
 
     // Update bobsled power-ups
     this.updatePowerups(dt);
@@ -1075,20 +1252,42 @@ export class Game {
     this.helmetMode = true;
     this.helmetBouncesLeft = 3;
     this.soundManager.playCollect();
-    // Add big pink helmet to player's head
+    // Add pink helmet on top of head — open face so you can see her
     this.helmetMesh = new THREE.Group();
     const helmetMat = new THREE.MeshStandardMaterial({
       color: 0xff69b4,
       metalness: 0.4,
       roughness: 0.3,
     });
+    // Dome covers only the top/back of head
     const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(0.4, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.65),
+      new THREE.SphereGeometry(0.38, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.45),
       helmetMat
     );
-    dome.scale.set(1.2, 1.1, 1.2);
+    dome.position.y = 0.05;
     this.helmetMesh.add(dome);
-    this.helmetMesh.position.set(0, 1.5, 0);
+    // Side guards that don't cover the face
+    for (const side of [-1, 1]) {
+      const guard = new THREE.Mesh(
+        new THREE.SphereGeometry(0.15, 8, 6, 0, Math.PI, 0, Math.PI * 0.5),
+        helmetMat
+      );
+      guard.position.set(side * 0.3, -0.1, 0);
+      guard.rotation.z = side * -0.3;
+      this.helmetMesh.add(guard);
+    }
+    // Pink visor on top (flipped up)
+    const visorMat = new THREE.MeshStandardMaterial({
+      color: 0xff88cc,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.02), visorMat);
+    visor.position.set(0, 0.15, 0.35);
+    visor.rotation.x = -0.5;
+    this.helmetMesh.add(visor);
+
+    this.helmetMesh.position.set(0, 1.65, 0);
     this.player.group.add(this.helmetMesh);
     const el = document.getElementById('shield-display')!;
     el.style.display = 'block';

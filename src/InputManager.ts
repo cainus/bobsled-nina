@@ -2,13 +2,16 @@ export interface PlayerInput {
   left: boolean;
   right: boolean;
   jump: boolean;
+  doubleJump: boolean;
   duck: boolean;
 }
 
 export class InputManager {
-  private pending: PlayerInput = { left: false, right: false, jump: false, duck: false };
+  private pending: PlayerInput = { left: false, right: false, jump: false, doubleJump: false, duck: false };
   private touchStartX = 0;
   private touchStartY = 0;
+  private lastJumpTime = 0;
+  private readonly doubleTapWindow = 300; // ms
 
   constructor() {
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
@@ -30,7 +33,14 @@ export class InputManager {
         if (dx > 0) this.pending.right = true;
         else this.pending.left = true;
       } else if (absDy > threshold) {
-        if (dy < 0) this.pending.jump = true;
+        if (dy < 0) {
+          const now = Date.now();
+          if (now - this.lastJumpTime < this.doubleTapWindow) {
+            this.pending.doubleJump = true;
+          }
+          this.pending.jump = true;
+          this.lastJumpTime = now;
+        }
         else this.pending.duck = true;
       }
     }, { passive: true });
@@ -43,7 +53,13 @@ export class InputManager {
       case 'ArrowRight': case 'd': case 'D':
         this.pending.right = true; break;
       case 'ArrowUp': case 'w': case 'W': case ' ':
-        this.pending.jump = true; break;
+        const now = Date.now();
+        if (now - this.lastJumpTime < this.doubleTapWindow) {
+          this.pending.doubleJump = true;
+        }
+        this.pending.jump = true;
+        this.lastJumpTime = now;
+        break;
       case 'ArrowDown': case 's': case 'S':
         this.pending.duck = true; break;
     }
@@ -51,7 +67,7 @@ export class InputManager {
 
   consume(): PlayerInput {
     const result = { ...this.pending };
-    this.pending = { left: false, right: false, jump: false, duck: false };
+    this.pending = { left: false, right: false, jump: false, doubleJump: false, duck: false };
     return result;
   }
 }
