@@ -1,0 +1,35 @@
+src/Game.ts
+  ed24b2cc852edc7c 10-12,26-28,38,78-80,86-88,93-96,195-197,209-211,214-215,219-220,237-238,240-241,244,253,261-262,273-274,277
+src/LaneHeightMap.ts
+  ed24b2cc852edc7c 50-62
+src/ObstacleManager.ts
+  ed24b2cc852edc7c 65,94
+src/TrackManager.ts
+  ed24b2cc852edc7c 231-244,426-490
+src/PowerupManager.ts
+  ed24b2cc852edc7c 1-697
+src/CollisionManager.ts
+  ed24b2cc852edc7c 1-69
+src/EnvironmentManager.ts
+  ed24b2cc852edc7c 1-331
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "cd69c79ddfef8670f58b7e03839cf116e4b8f099",
+  "prompts": {
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 1231,
+      "total_deletions": 1155,
+      "accepted_lines": 1230,
+      "overriden_lines": 0
+    }
+  }
+}
