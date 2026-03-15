@@ -47,6 +47,19 @@ export class LaneHeightMap {
     return false;
   }
 
+  /** Check if a lane is on a ramp or within `margin` units past the top of one */
+  isOnOrNearRamp(lane: number, worldZ: number, margin = 5): boolean {
+    for (const seg of this.segments) {
+      if (seg.lane !== lane) continue;
+      if (seg.startY === seg.endY) continue; // flat segment
+      // On the ramp itself
+      if (worldZ >= seg.startZ && worldZ <= seg.endZ) return true;
+      // Just past the top of an up-ramp (within margin)
+      if (seg.endY > seg.startY && worldZ > seg.endZ && worldZ <= seg.endZ + margin) return true;
+    }
+    return false;
+  }
+
   /** Scroll all segments by an amount (track moves toward player) */
   scroll(amount: number) {
     for (const seg of this.segments) {

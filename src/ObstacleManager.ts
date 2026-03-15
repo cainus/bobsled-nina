@@ -62,7 +62,7 @@ export class ObstacleManager {
     if (type === 'largeTree') {
       // Large tree that spans 2 adjacent lanes
       const lanes = [-1, 0, 1].filter(
-        lane => !this.game.laneHeightMap.isUpRamp(lane, this.spawnZ)
+        lane => !this.game.laneHeightMap.isOnOrNearRamp(lane, this.spawnZ)
       );
       if (lanes.length < 2) return;
       // Pick 2 adjacent lanes
@@ -91,7 +91,7 @@ export class ObstacleManager {
     } else {
       // Pick 1-2 lanes to block, excluding lanes on up ramps
       const lanes = [-1, 0, 1].filter(
-        lane => !this.game.laneHeightMap.isUpRamp(lane, this.spawnZ)
+        lane => !this.game.laneHeightMap.isOnOrNearRamp(lane, this.spawnZ)
       );
       if (lanes.length === 0) return;
       const numBlocked = Math.random() > 0.6 ? 2 : 1;

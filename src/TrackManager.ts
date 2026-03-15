@@ -228,6 +228,20 @@ export class TrackManager {
       }
     }
 
+    // Rare inuksuk (roughly 1 in 12 chunks, on one side)
+    if (Math.random() < 0.08) {
+      const side = Math.random() > 0.5 ? 1 : -1;
+      const inuksuk = this.createInuksuk();
+      inuksuk.position.set(
+        side * (12 + Math.random() * 10),
+        0,
+        Math.random() * CHUNK_LENGTH
+      );
+      // Face slightly toward the track
+      inuksuk.rotation.y = side * -0.3 + (Math.random() - 0.5) * 0.4;
+      chunk.add(inuksuk);
+    }
+
     this.laneEndHeights = endHeights;
     this.game.scene.add(chunk);
     this.chunks.push(chunk);
@@ -406,6 +420,71 @@ export class TrackManager {
       group.add(small);
     }
 
+    return group;
+  }
+
+  private createInuksuk(): THREE.Group {
+    const group = new THREE.Group();
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6b6b6b, roughness: 0.95 });
+    const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
+
+    // Base — wide flat stone
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 0.6), stoneMat);
+    base.position.y = 0.18;
+    base.castShadow = true;
+    group.add(base);
+
+    // Left leg
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.8, 0.5), darkStoneMat);
+    leftLeg.position.set(-0.4, 0.75, 0);
+    leftLeg.castShadow = true;
+    group.add(leftLeg);
+
+    // Right leg
+    const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.8, 0.5), darkStoneMat);
+    rightLeg.position.set(0.4, 0.75, 0);
+    rightLeg.castShadow = true;
+    group.add(rightLeg);
+
+    // Mid stone (spans the gap like a pelvis)
+    const mid = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 0.55), stoneMat);
+    mid.position.y = 1.3;
+    mid.castShadow = true;
+    group.add(mid);
+
+    // Torso — narrower upright stone
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.45), darkStoneMat);
+    torso.position.y = 1.8;
+    torso.castShadow = true;
+    group.add(torso);
+
+    // Arms — flat stones sticking out to each side
+    for (const side of [-1, 1]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.35), stoneMat);
+      arm.position.set(side * 0.6, 1.75, 0);
+      arm.rotation.z = side * -0.15;
+      arm.castShadow = true;
+      group.add(arm);
+    }
+
+    // Head — rounded stone on top
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), darkStoneMat);
+    head.position.y = 2.4;
+    head.scale.set(1, 0.8, 0.9);
+    head.castShadow = true;
+    group.add(head);
+
+    // Snow dusting on top
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+    const snow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.4),
+      snowMat
+    );
+    snow.position.y = 2.6;
+    group.add(snow);
+
+    const scale = 0.8 + Math.random() * 0.4;
+    group.scale.setScalar(scale);
     return group;
   }
 
