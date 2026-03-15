@@ -17,6 +17,9 @@ export class Player {
   private readonly jumpForce = 12;
   private readonly gravity = -30;
   private groundY = 0.5;
+  jumpMultiplier = 1;
+  private spinning = false;
+  private spinAngle = 0;
 
   // Ramp launch
   private landSoundPlayed = false;
@@ -419,10 +422,49 @@ export class Player {
         }
       }
     });
+    // Also color the vehicle if it's a bobsled
+    if (this.currentVehicle === 'bobsled') {
+      this.setVehicleBlack(active);
+    }
+  }
+
+  setVehicleColors(primary: number, secondary: number) {
+    const bobsledRed = 0xe63946;
+    const bobsledRail = 0xcc2233;
+    this.vehicle.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+        const hex = child.material.color.getHex();
+        if (hex === bobsledRed) child.material.color.setHex(primary);
+        if (hex === bobsledRail) child.material.color.setHex(secondary);
+      }
+    });
+  }
+
+  setVehicleBlack(black: boolean) {
+    const bobsledRed = 0xe63946;
+    const bobsledRail = 0xcc2233;
+    this.vehicle.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+        const hex = child.material.color.getHex();
+        if (black) {
+          if (hex === bobsledRed || hex === bobsledRail) {
+            child.material.color.setHex(0x111111);
+          }
+        } else {
+          if (hex === 0x111111) {
+            // Can't distinguish which was red vs rail, but close enough
+            child.material.color.setHex(bobsledRed);
+          }
+        }
+      }
+    });
   }
 
   reset() {
     this.isMetalMode = false;
+    this.jumpMultiplier = 1;
+    this.spinning = false;
+    this.group.rotation.y = 0;
     this.currentLane = 0;
     this.targetLane = 0;
     this.isJumping = false;
@@ -464,13 +506,19 @@ export class Player {
         this.targetLane = nextLane;
       }
     }
-    if (input.jump && !this.isJumping && !inBobsled) {
+    const canJump = !inBobsled || this.game.isSnowmobile;
+    if (input.jump && !this.isJumping && canJump) {
       this.isJumping = true;
       this.landSoundPlayed = false;
-      this.jumpVelocity = this.jumpForce;
+      this.jumpVelocity = this.jumpForce * this.jumpMultiplier;
       this.isDucking = false;
       this.character.scale.copy(this.normalCharacterScale);
       this.game.soundManager.playGrunt();
+      // 25% chance of 360 spin when on snowboard
+      if (this.currentVehicle === 'snowboard' && Math.random() < 0.25) {
+        this.spinning = true;
+        this.spinAngle = 0;
+      }
     }
     if (input.duck && !this.isJumping) {
       this.isDucking = true;
@@ -509,10 +557,22 @@ export class Player {
       }
       this.jumpVelocity += this.gravity * dt;
       this.group.position.y += this.jumpVelocity * dt;
+      // 360 spin animation
+      if (this.spinning) {
+        this.spinAngle += dt * 8;
+        this.group.rotation.y = this.spinAngle;
+        if (this.spinAngle >= Math.PI * 2) {
+          this.spinning = false;
+          this.group.rotation.y = 0;
+        }
+      }
+
       if (this.group.position.y <= this.groundY) {
         this.group.position.y = this.groundY;
         this.isJumping = false;
         this.jumpVelocity = 0;
+        this.spinning = false;
+        this.group.rotation.y = 0;
       }
     } else {
       // Snap/lerp to ground height (handles ramps and dropping from high to low lane)

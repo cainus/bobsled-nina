@@ -5,7 +5,8 @@ export interface Obstacle {
   mesh: THREE.Object3D;
   collider?: THREE.Object3D; // if set, use this for collision instead of mesh
   active: boolean;
-  jumpScored?: boolean; // true if player already got jump bonus for this obstacle
+  jumpScored?: boolean;
+  isSnowman?: boolean;
 }
 
 type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree';
@@ -52,8 +53,10 @@ export class ObstacleManager {
   }
 
   private spawnObstacle() {
-    const types: ObstacleType[] = ['rock', 'snowman', 'pineTree', 'lowObstacle', 'treeBranch', 'largeTree'];
-    const type = types[Math.floor(Math.random() * types.length)];
+    const types: ObstacleType[] = ['rock', 'pineTree', 'lowObstacle', 'treeBranch', 'largeTree'];
+    let type: ObstacleType = types[Math.floor(Math.random() * types.length)];
+    // Snowmen are rare — 5% chance
+    if (Math.random() < 0.05) type = 'snowman';
 
     if (type === 'largeTree') {
       // Large tree that spans 2 adjacent lanes
@@ -103,7 +106,7 @@ export class ObstacleManager {
           this.spawnZ
         );
         this.game.scene.add(mesh);
-        this.obstacles.push({ mesh, active: true });
+        this.obstacles.push({ mesh, active: true, isSnowman: type === 'snowman' });
       }
     }
   }
@@ -171,28 +174,62 @@ export class ObstacleManager {
       }
 
       case 'pineTree': {
-        // Small pine tree obstacle on the track
-        const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, 1.5, 6);
+        const pineVariant = Math.floor(Math.random() * 3);
         const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
-        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-        trunk.position.y = 0.75;
-        trunk.castShadow = true;
-        group.add(trunk);
-        // Foliage layers
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
-        for (let i = 0; i < 3; i++) {
-          const coneGeo = new THREE.ConeGeometry(1.0 - i * 0.2, 1.2, 8);
-          const cone = new THREE.Mesh(coneGeo, leafMat);
-          cone.position.y = 1.6 + i * 0.7;
-          cone.castShadow = true;
-          group.add(cone);
+        const snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+
+        if (pineVariant === 0) {
+          // Classic tall pine — 3 tiers
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 1.5, 6), trunkMat);
+          trunk.position.y = 0.75;
+          trunk.castShadow = true;
+          group.add(trunk);
+          const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
+          for (let i = 0; i < 3; i++) {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(1.0 - i * 0.2, 1.2, 8), leafMat);
+            cone.position.y = 1.6 + i * 0.7;
+            cone.castShadow = true;
+            group.add(cone);
+          }
+          const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.4, 8), snowMat);
+          cap.position.y = 3.5;
+          group.add(cap);
+        } else if (pineVariant === 1) {
+          // Short bushy pine — wider, fewer tiers
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.0, 6), trunkMat);
+          trunk.position.y = 0.5;
+          trunk.castShadow = true;
+          group.add(trunk);
+          const leafMat = new THREE.MeshStandardMaterial({ color: 0x1f4030 });
+          for (let i = 0; i < 2; i++) {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(1.3 - i * 0.3, 1.5, 8), leafMat);
+            cone.position.y = 1.2 + i * 1.0;
+            cone.castShadow = true;
+            group.add(cone);
+          }
+          // Heavy snow on branches
+          for (let i = 0; i < 2; i++) {
+            const snow = new THREE.Mesh(new THREE.ConeGeometry(1.1 - i * 0.3, 0.3, 8), snowMat);
+            snow.position.y = 1.7 + i * 1.0;
+            group.add(snow);
+          }
+        } else {
+          // Tall narrow spruce
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 2.0, 6), trunkMat);
+          trunk.position.y = 1.0;
+          trunk.castShadow = true;
+          group.add(trunk);
+          const leafMat = new THREE.MeshStandardMaterial({ color: 0x345548 });
+          for (let i = 0; i < 5; i++) {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(0.7 - i * 0.1, 0.8, 6), leafMat);
+            cone.position.y = 1.8 + i * 0.55;
+            cone.castShadow = true;
+            group.add(cone);
+          }
+          const cap = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.4, 6), snowMat);
+          cap.position.y = 4.6;
+          group.add(cap);
         }
-        // Snow cap
-        const capGeo = new THREE.ConeGeometry(0.3, 0.4, 8);
-        const capMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
-        const cap = new THREE.Mesh(capGeo, capMat);
-        cap.position.y = 3.5;
-        group.add(cap);
         break;
       }
 
@@ -434,11 +471,11 @@ export class ObstacleManager {
     trunk.castShadow = true;
     group.add(trunk);
 
-    // Foliage on the trunk
-    for (let i = 0; i < 2; i++) {
-      const foliageGeo = new THREE.SphereGeometry(1.2 + i * 0.3, 8, 6);
+    // Pine foliage on the trunk
+    for (let i = 0; i < 3; i++) {
+      const foliageGeo = new THREE.ConeGeometry(1.4 - i * 0.3, 1.8, 8);
       const foliage = new THREE.Mesh(foliageGeo, leafMat);
-      foliage.position.set(trunkX, 5 + i * 1.2, 0);
+      foliage.position.set(trunkX, 4.5 + i * 1.1, 0);
       foliage.castShadow = true;
       group.add(foliage);
     }
@@ -462,19 +499,23 @@ export class ObstacleManager {
     colliderMesh.position.set(branchX, 1.8, 0);
     group.add(colliderMesh);
 
-    // Leaves/snow on the branch
-    const clumpCount = numLanes * 2;
+    // Pine needle clumps and snow on the branch
+    const clumpCount = numLanes * 3;
     for (let i = 0; i < clumpCount; i++) {
       const t = (i + 0.5) / clumpCount;
       const cx = trunkX + (-side * branchLength * t);
-      const clumpGeo = new THREE.SphereGeometry(0.4 + Math.random() * 0.3, 6, 5);
       const isSnow = Math.random() > 0.5;
-      const clumpMat = isSnow
-        ? new THREE.MeshStandardMaterial({ color: 0xfafafa })
-        : leafMat;
-      const clump = new THREE.Mesh(clumpGeo, clumpMat);
-      clump.position.set(cx, 2.1 + Math.random() * 0.3, (Math.random() - 0.5) * 0.5);
-      group.add(clump);
+      if (isSnow) {
+        const snowGeo = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 5, 4);
+        const snowClump = new THREE.Mesh(snowGeo, new THREE.MeshStandardMaterial({ color: 0xfafafa }));
+        snowClump.position.set(cx, 2.15 + Math.random() * 0.2, (Math.random() - 0.5) * 0.4);
+        group.add(snowClump);
+      } else {
+        const needleGeo = new THREE.ConeGeometry(0.3 + Math.random() * 0.2, 0.5, 5);
+        const needle = new THREE.Mesh(needleGeo, leafMat);
+        needle.position.set(cx, 2.3 + Math.random() * 0.2, (Math.random() - 0.5) * 0.4);
+        group.add(needle);
+      }
     }
 
     return { group, collider: colliderMesh };

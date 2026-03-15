@@ -248,10 +248,10 @@ export class SoundManager {
   private renderThrashBuffer(): AudioBuffer {
     const ctx = this.ensureContext();
     const sampleRate = ctx.sampleRate;
-    const bpm = 200;
+    const bpm = 340;
     const noteLen = 60 / bpm;
-    // E2-based thrash riff with palm mutes and power chords
-    const riffNotes = [82.4, 82.4, 98, 82.4, 110, 82.4, 130.8, 123.5, 110, 98, 82.4, 82.4, 73.4, 82.4, 98, 110];
+    // E2-based thrash riff with palm mutes and power chords — fast 16th note feel
+    const riffNotes = [82.4, 82.4, 98, 82.4, 110, 130.8, 82.4, 98, 73.4, 82.4, 110, 123.5];
     const riffDuration = riffNotes.length * noteLen;
     const totalSamples = Math.ceil(riffDuration * sampleRate);
     const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
@@ -317,6 +317,7 @@ export class SoundManager {
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
+    source.playbackRate.value = 1.3;
 
     const gain = ctx.createGain();
     gain.gain.value = 0.5;
@@ -343,6 +344,72 @@ export class SoundManager {
     }
   }
 
+  // Snowmobile motor
+  private motorSource: OscillatorNode | null = null;
+  private motorGain: GainNode | null = null;
+  private motorPlaying = false;
+
+  startMotor() {
+    if (this.motorPlaying) return;
+    this.motorPlaying = true;
+    const ctx = this.ensureContext();
+
+    // Low rumbling motor — sawtooth with LFO modulation
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 55;
+
+    // Engine RPM wobble
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 8;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 10;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    lfo.start();
+
+    // Low-pass to remove harshness
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 300;
+    filter.Q.value = 2;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.3);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+
+    this.motorSource = osc;
+    this.motorGain = gain;
+  }
+
+  setMotorPitch(high: boolean) {
+    if (this.motorSource) {
+      this.motorSource.frequency.linearRampToValueAtTime(
+        high ? 90 : 55,
+        this.ctx!.currentTime + 0.1
+      );
+    }
+  }
+
+  stopMotor() {
+    if (!this.motorPlaying) return;
+    this.motorPlaying = false;
+    if (this.motorSource) {
+      this.motorSource.stop();
+      this.motorSource.disconnect();
+      this.motorSource = null;
+    }
+    if (this.motorGain) {
+      this.motorGain.disconnect();
+      this.motorGain = null;
+    }
+  }
+
   setWindVolume(vol: number) {
     if (this.windGain) {
       this.windGain.gain.linearRampToValueAtTime(vol, this.ctx!.currentTime + 0.5);
@@ -352,6 +419,7 @@ export class SoundManager {
   reset() {
     this.stopSliding();
     this.stopThrash();
+    this.stopMotor();
     if (this.windSource) {
       this.windSource.stop();
       this.windSource.disconnect();

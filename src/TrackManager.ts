@@ -309,28 +309,65 @@ export class TrackManager {
 
   private createTree(): THREE.Group {
     const tree = new THREE.Group();
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 2, 6);
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = 1;
-    trunk.castShadow = true;
-    tree.add(trunk);
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const variant = Math.floor(Math.random() * 3);
 
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
-    for (let i = 0; i < 3; i++) {
-      const coneGeo = new THREE.ConeGeometry(1.8 - i * 0.4, 2.2, 8);
-      const cone = new THREE.Mesh(coneGeo, leafMat);
-      cone.position.y = 2.5 + i * 1.2;
-      cone.castShadow = true;
-      tree.add(cone);
+    if (variant === 0) {
+      // Classic wide pine
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2, 6), trunkMat);
+      trunk.position.y = 1;
+      trunk.castShadow = true;
+      tree.add(trunk);
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
+      for (let i = 0; i < 3; i++) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(1.8 - i * 0.4, 2.2, 8), leafMat);
+        cone.position.y = 2.5 + i * 1.2;
+        cone.castShadow = true;
+        tree.add(cone);
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.6, 8), snowMat);
+      cap.position.y = 6;
+      tree.add(cap);
+    } else if (variant === 1) {
+      // Tall narrow spruce
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 3, 6), trunkMat);
+      trunk.position.y = 1.5;
+      trunk.castShadow = true;
+      tree.add(trunk);
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x345548 });
+      for (let i = 0; i < 5; i++) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(1.0 - i * 0.15, 1.4, 6), leafMat);
+        cone.position.y = 2.8 + i * 0.9;
+        cone.castShadow = true;
+        tree.add(cone);
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 6), snowMat);
+      cap.position.y = 7.3;
+      tree.add(cap);
+    } else {
+      // Snow-heavy squat pine
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.5, 6), trunkMat);
+      trunk.position.y = 0.75;
+      trunk.castShadow = true;
+      tree.add(trunk);
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x1f4030 });
+      for (let i = 0; i < 2; i++) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(2.0 - i * 0.4, 1.8, 8), leafMat);
+        cone.position.y = 1.8 + i * 1.1;
+        cone.castShadow = true;
+        tree.add(cone);
+      }
+      // Heavy snow layers
+      for (let i = 0; i < 2; i++) {
+        const snow = new THREE.Mesh(new THREE.ConeGeometry(1.7 - i * 0.4, 0.35, 8), snowMat);
+        snow.position.y = 2.4 + i * 1.1;
+        tree.add(snow);
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.5, 8), snowMat);
+      cap.position.y = 4.5;
+      tree.add(cap);
     }
-
-    const snowCap = new THREE.Mesh(
-      new THREE.ConeGeometry(0.6, 0.6, 8),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-    snowCap.position.y = 6;
-    tree.add(snowCap);
 
     const scale = 0.6 + Math.random() * 0.6;
     tree.scale.setScalar(scale);

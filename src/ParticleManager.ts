@@ -24,6 +24,8 @@ export class ParticleManager {
   private smallGeo = new THREE.SphereGeometry(0.06, 4, 4);
   private snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private collectMat = new THREE.MeshBasicMaterial({ color: 0xaaeeff });
+  private fireColors = [0xff4400, 0xff8800, 0xffcc00, 0xff2200];
+  private fireTimer = 0;
 
   constructor(game: Game) {
     this.game = game;
@@ -45,6 +47,15 @@ export class ParticleManager {
     if (this.sprayTimer > 0.03) {
       this.sprayTimer = 0;
       this.spawnSnowSpray();
+    }
+
+    // Fire particles in metal mode
+    if (this.game.metalMode) {
+      this.fireTimer += dt;
+      if (this.fireTimer > 0.015) {
+        this.fireTimer = 0;
+        this.spawnFire();
+      }
     }
 
     // Update particles
@@ -80,6 +91,30 @@ export class ParticleManager {
       );
       this.game.scene.add(mesh);
       this.particles.push({ mesh, velocity, life: 0.4 + Math.random() * 0.3 });
+    }
+  }
+
+  private spawnFire() {
+    const playerPos = this.game.player.group.position;
+    for (let i = 0; i < 3; i++) {
+      const color = this.fireColors[Math.floor(Math.random() * this.fireColors.length)];
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true });
+      const size = 0.08 + Math.random() * 0.06;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 4, 4), mat);
+      // Spawn behind and slightly to the sides (from ski/runner positions)
+      const side = (Math.random() - 0.5) * 1.0;
+      mesh.position.set(
+        playerPos.x + side,
+        playerPos.y + 0.1 + Math.random() * 0.2,
+        playerPos.z - 1.4 - Math.random() * 0.5
+      );
+      const velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 1.5,
+        1.5 + Math.random() * 2.5,
+        -3 - Math.random() * 2
+      );
+      this.game.scene.add(mesh);
+      this.particles.push({ mesh, velocity, life: 0.25 + Math.random() * 0.2 });
     }
   }
 

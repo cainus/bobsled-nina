@@ -37,12 +37,25 @@ export class Game {
   // Power-ups
   private bobsledShield = false;
   private bobsledHitsLeft = 0;
+  isSnowmobile = false; // true when shield vehicle is snowmobile instead of bobsled
   private preShieldVehicle: 'skis' | 'snowboard' | 'rainbowSkis' = 'skis';
-  private powerups: { mesh: THREE.Group; active: boolean; type: 'bobsled' | 'metal' }[] = [];
+  private powerups: { mesh: THREE.Group; active: boolean; type: 'bobsled' | 'metal' | 'snowboard' | 'helmet' }[] = [];
   private powerupSpawnTimer = 0;
+  private nextSnowboardScore = 1500; // snowboard powerup at most once per 1500 pts
+
+  // Snowboard powerup state
+  snowboardMode = false;
+
+  // Pink helmet
+  private helmetMode = false;
+  private helmetBouncesLeft = 0;
+  private helmetMesh: THREE.Group | null = null;
 
   // Heavy metal mode
-  private metalMode = false;
+  metalMode = false;
+
+  // Headlight
+  private headlight: THREE.SpotLight | null = null;
 
   // Environment transitions
   private isNight = false;
@@ -336,6 +349,20 @@ export class Game {
         this.stars = null;
       }
     }
+
+    // Snowmobile headlight in the dark
+    if (this.isSnowmobile && this.isNight && !this.headlight) {
+      this.headlight = new THREE.SpotLight(0xffffcc, 2, 60, 0.4, 0.5);
+      this.headlight.position.set(0, 1.5, 1.5);
+      this.headlight.target.position.set(0, 0, 20);
+      this.player.group.add(this.headlight);
+      this.player.group.add(this.headlight.target);
+    }
+    if (this.headlight && (!this.isSnowmobile || !this.isNight)) {
+      this.player.group.remove(this.headlight.target);
+      this.player.group.remove(this.headlight);
+      this.headlight = null;
+    }
   }
 
   private createStars() {
@@ -381,8 +408,23 @@ export class Game {
     this.powerupSpawnTimer = 0;
     this.bobsledShield = false;
     this.bobsledHitsLeft = 0;
+    this.isSnowmobile = false;
     this.metalMode = false;
+    this.snowboardMode = false;
+    this.nextSnowboardScore = 1500;
+    this.helmetMode = false;
+    this.helmetBouncesLeft = 0;
+    if (this.helmetMesh) {
+      this.player.group.remove(this.helmetMesh);
+      this.helmetMesh = null;
+    }
+    if (this.headlight) {
+      this.player.group.remove(this.headlight.target);
+      this.player.group.remove(this.headlight);
+      this.headlight = null;
+    }
     this.soundManager.stopThrash();
+    this.soundManager.stopMotor();
     document.getElementById('shield-display')!.style.display = 'none';
     document.getElementById('metal-display')!.style.display = 'none';
   }
@@ -446,8 +488,10 @@ export class Game {
 
     // Increase speed over time — steepness gives a speed boost
     const steepnessBoost = this.steepness * 12;
-    const metalBoost = this.metalMode ? this.maxSpeed * 0.5 : 0;
-    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost + metalBoost);
+    let modeBoost = 0;
+    if (this.metalMode) modeBoost = this.maxSpeed * 0.5;
+    if (this.isSnowmobile) modeBoost = Math.max(modeBoost, this.maxSpeed * 1.0);
+    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost + modeBoost);
 
     // Process input
     const input = this.inputManager.consume();
@@ -469,18 +513,22 @@ export class Game {
     // Update sound
     this.soundManager.setSlidingMuted(this.player.isJumping);
     this.soundManager.updateSlidingPitch(this.speed);
+    if (this.isSnowmobile) {
+      this.soundManager.setMotorPitch(this.player.isJumping);
+    }
 
-    // Update score (distance-based, 2x in metal mode)
-    this.score += Math.round(this.speed * dt * (this.metalMode ? 2 : 1));
+    // Update score (distance-based, multipliers for modes)
+    let scoreMultiplier = 1;
+    if (this.metalMode) scoreMultiplier = 2;
+    if (this.isSnowmobile) scoreMultiplier = Math.max(scoreMultiplier, 2);
+    this.score += Math.round(this.speed * dt * scoreMultiplier);
     document.getElementById('score')!.textContent = this.score.toString();
     document.getElementById('coins-display')!.textContent = `Snowflakes: ${this.coins}`;
 
-    // Vehicle upgrades based on score (skip if in bobsled power-up)
-    if (!this.bobsledShield) {
+    // Vehicle upgrades based on score (skip if in special vehicle)
+    if (!this.bobsledShield && !this.snowboardMode) {
       if (this.score >= 1500) {
         this.player.switchVehicle('rainbowSkis');
-      } else if (this.score >= 1000) {
-        this.player.switchVehicle('snowboard');
       }
     }
 
@@ -518,21 +566,44 @@ export class Game {
       // Shrink collision box slightly for fairness
       obstacleBox.expandByScalar(-0.15);
       if (playerBox.intersectsBox(obstacleBox)) {
-        if (this.metalMode) {
-          // Metal mode ends on hit — destroy obstacle but survive
+        const wasSnowman = obstacle.isSnowman;
+        if (this.snowboardMode) {
           obstacle.active = false;
+          if (wasSnowman) this.explodeSnowman(obstacle.mesh, false);
+          this.scene.remove(obstacle.mesh);
+          this.deactivateSnowboard();
+          continue;
+        }
+        if (this.metalMode) {
+          obstacle.active = false;
+          if (wasSnowman) this.explodeSnowman(obstacle.mesh, true);
           this.scene.remove(obstacle.mesh);
           this.deactivateMetalMode();
           continue;
         }
         if (this.bobsledShield) {
-          // Destroy obstacle and use a shield hit
           obstacle.active = false;
+          if (wasSnowman) this.explodeSnowman(obstacle.mesh, false);
           this.scene.remove(obstacle.mesh);
           this.bobsledHitsLeft--;
           this.showShieldHit();
           if (this.bobsledHitsLeft <= 0) {
             this.deactivateShield();
+          }
+          continue;
+        }
+        if (this.helmetMode) {
+          this.helmetBouncesLeft--;
+          // Bounce to a different lane
+          const currentLane = this.player.targetLane;
+          const otherLanes = [-1, 0, 1].filter(l => l !== currentLane);
+          const newLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+          this.player.targetLane = newLane;
+          this.player.currentLane = newLane;
+          this.soundManager.playLand();
+          this.showHelmetBounce();
+          if (this.helmetBouncesLeft <= 0) {
+            this.deactivateHelmet();
           }
           continue;
         }
@@ -574,9 +645,14 @@ export class Game {
     this.powerupSpawnTimer += dt;
     if (this.powerupSpawnTimer > 12 + Math.random() * 15) {
       this.powerupSpawnTimer = 0;
-      const type = Math.random() > 0.5 ? 'bobsled' : 'metal';
-      if (type === 'bobsled' && this.bobsledShield) return;
-      if (type === 'metal' && this.metalMode) return;
+      // Build list of eligible powerups
+      const types: ('bobsled' | 'metal' | 'snowboard' | 'helmet')[] = ['metal'];
+      if (!this.bobsledShield) types.push('bobsled');
+      if (!this.snowboardMode && this.score >= this.nextSnowboardScore) types.push('snowboard');
+      if (!this.helmetMode) types.push('helmet');
+      if (this.metalMode && types.includes('metal')) types.splice(types.indexOf('metal'), 1);
+      if (types.length === 0) return;
+      const type = types[Math.floor(Math.random() * types.length)];
       this.spawnPowerup(type);
     }
 
@@ -596,8 +672,12 @@ export class Game {
         this.scene.remove(pu.mesh);
         if (pu.type === 'bobsled') {
           this.activateShield();
-        } else {
+        } else if (pu.type === 'metal') {
           this.activateMetalMode();
+        } else if (pu.type === 'snowboard') {
+          this.activateSnowboard();
+        } else if (pu.type === 'helmet') {
+          this.activateHelmet();
         }
         this.powerups.splice(i, 1);
         continue;
@@ -611,10 +691,19 @@ export class Game {
     }
   }
 
-  private spawnPowerup(type: 'bobsled' | 'metal') {
+  private spawnPowerup(type: 'bobsled' | 'metal' | 'snowboard' | 'helmet') {
     const lane = Math.floor(Math.random() * 3) - 1;
     const laneY = this.laneHeightMap.getHeight(lane, 100);
-    const mesh = type === 'bobsled' ? this.createPowerupMesh() : this.createWalkmanMesh();
+    let mesh: THREE.Group;
+    if (type === 'bobsled') {
+      mesh = this.score >= 6000 ? this.createSnowmobileMesh() : this.createPowerupMesh();
+    } else if (type === 'metal') {
+      mesh = this.createWalkmanMesh();
+    } else if (type === 'snowboard') {
+      mesh = this.createSnowboardPowerupMesh();
+    } else {
+      mesh = this.createHelmetPowerupMesh();
+    }
     mesh.position.set(lane * this.laneWidth, laneY + 0.8, 100);
     this.scene.add(mesh);
     this.powerups.push({ mesh, active: true, type });
@@ -670,26 +759,35 @@ export class Game {
   private activateShield() {
     this.bobsledShield = true;
     this.bobsledHitsLeft = 3;
+    this.isSnowmobile = this.score >= 6000;
     const v = this.player.currentVehicle;
     if (v !== 'bobsled') {
       this.preShieldVehicle = v as 'skis' | 'snowboard' | 'rainbowSkis';
     }
     this.player.switchVehicle('bobsled');
+    if (this.isSnowmobile) {
+      this.player.setVehicleColors(0xddcc00, 0x222222); // yellow and black
+      this.soundManager.startMotor();
+    }
+    if (this.metalMode) {
+      this.player.setVehicleBlack(true);
+    }
     this.soundManager.playCollect();
-    // Show shield indicator
     const el = document.getElementById('shield-display')!;
     el.style.display = 'block';
-    el.textContent = '🛷 x3';
+    el.textContent = this.isSnowmobile ? '🏔️ x3' : '🛷 x3';
   }
 
   private deactivateShield() {
     this.bobsledShield = false;
     this.bobsledHitsLeft = 0;
+    if (this.isSnowmobile) {
+      this.soundManager.stopMotor();
+    }
+    this.isSnowmobile = false;
     // Revert to appropriate vehicle for current score
     if (this.score >= 1500) {
       this.player.switchVehicle('rainbowSkis');
-    } else if (this.score >= 1000) {
-      this.player.switchVehicle('snowboard');
     } else {
       this.player.switchVehicle(this.preShieldVehicle);
     }
@@ -778,6 +876,240 @@ export class Game {
     const el = document.createElement('div');
     el.textContent = 'METAL OVER!';
     el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff4444;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
+    document.getElementById('ui-overlay')!.appendChild(el);
+    requestAnimationFrame(() => { el.style.top = '35%'; el.style.opacity = '0'; });
+    setTimeout(() => el.remove(), 600);
+  }
+
+  private createSnowboardPowerupMesh(): THREE.Group {
+    const group = new THREE.Group();
+    const boardMat = new THREE.MeshStandardMaterial({
+      color: 0x9c27b0,
+      emissive: 0x6a1b9a,
+      emissiveIntensity: 0.4,
+    });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 2.0), boardMat);
+    board.position.y = 0.4;
+    board.castShadow = true;
+    group.add(board);
+    // Arrow icon above
+    const arrowMat = new THREE.MeshStandardMaterial({
+      color: 0x00ff88,
+      emissive: 0x00cc66,
+      emissiveIntensity: 0.6,
+    });
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 4), arrowMat);
+    arrow.position.y = 1.3;
+    group.add(arrow);
+    group.scale.setScalar(0.7);
+    return group;
+  }
+
+  private createSnowmobileMesh(): THREE.Group {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xddcc00,
+      emissive: 0xaa9900,
+      emissiveIntensity: 0.3,
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.2), bodyMat);
+    body.position.y = 0.2;
+    body.castShadow = true;
+    group.add(body);
+    // Black accents
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 1.0), blackMat);
+    seat.position.set(0, 0.5, -0.3);
+    group.add(seat);
+    // Windshield
+    const shieldMat = new THREE.MeshStandardMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.05), shieldMat);
+    windshield.position.set(0, 0.65, 0.6);
+    windshield.rotation.x = -0.3;
+    group.add(windshield);
+    // Track/treads
+    for (const side of [-0.5, 0.5]) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 2.4), blackMat);
+      tread.position.set(side, -0.05, 0);
+      group.add(tread);
+    }
+    // Lightning bolt
+    const boltMat = new THREE.MeshStandardMaterial({
+      color: 0xffdd00,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.8,
+    });
+    const bolt = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), boltMat);
+    bolt.position.y = 1.3;
+    group.add(bolt);
+    group.scale.setScalar(0.7);
+    return group;
+  }
+
+  private activateSnowboard() {
+    this.snowboardMode = true;
+    this.nextSnowboardScore = this.score + 1500;
+    this.player.switchVehicle('snowboard');
+    this.player.jumpMultiplier = 1.5;
+    this.soundManager.playCollect();
+    const el = document.getElementById('shield-display')!;
+    el.style.display = 'block';
+    el.textContent = '🏂 3x JUMP';
+  }
+
+  private deactivateSnowboard() {
+    this.snowboardMode = false;
+    this.player.jumpMultiplier = 1;
+    if (this.score >= 1500) {
+      this.player.switchVehicle('rainbowSkis');
+    } else {
+      this.player.switchVehicle('skis');
+    }
+    document.getElementById('shield-display')!.style.display = 'none';
+  }
+
+  private explodeSnowman(mesh: THREE.Object3D, keepHat: boolean) {
+    const worldPos = new THREE.Vector3();
+    mesh.getWorldPosition(worldPos);
+
+    // Fling each child mesh in random directions
+    mesh.updateMatrixWorld(true);
+    const children = [...(mesh as THREE.Group).children];
+    for (const child of children) {
+      if (!(child instanceof THREE.Mesh)) continue;
+      const childWorld = new THREE.Vector3();
+      child.getWorldPosition(childWorld);
+
+      // Check if this is a hat piece (black color, near the top)
+      const isHat = child.material instanceof THREE.MeshStandardMaterial &&
+        child.material.color.getHex() === 0x111111 && child.position.y > 2.4;
+
+      if (isHat && keepHat) {
+        // Put hat on player's head
+        const hat = child.clone();
+        hat.position.set(0, 1.8, 0);
+        hat.scale.setScalar(1);
+        this.player.group.add(hat);
+        continue;
+      }
+
+      // Create a flying debris piece
+      const debris = child.clone();
+      debris.position.copy(childWorld);
+      this.scene.add(debris);
+
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 10,
+        5 + Math.random() * 8,
+        (Math.random() - 0.5) * 10
+      );
+
+      // Animate debris
+      const startTime = Date.now();
+      const animate = () => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed > 2) {
+          this.scene.remove(debris);
+          return;
+        }
+        debris.position.x += vel.x * 0.016;
+        debris.position.y += vel.y * 0.016;
+        debris.position.z += vel.z * 0.016;
+        vel.y -= 15 * 0.016;
+        debris.rotation.x += 0.1;
+        debris.rotation.z += 0.08;
+        requestAnimationFrame(animate);
+      };
+      animate();
+    }
+  }
+
+  private createHelmetPowerupMesh(): THREE.Group {
+    const group = new THREE.Group();
+    const helmetMat = new THREE.MeshStandardMaterial({
+      color: 0xff69b4,
+      emissive: 0xff1493,
+      emissiveIntensity: 0.3,
+      metalness: 0.4,
+      roughness: 0.3,
+    });
+    // Helmet dome
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.6),
+      helmetMat
+    );
+    dome.position.y = 0.8;
+    dome.castShadow = true;
+    group.add(dome);
+    // Visor
+    const visorMat = new THREE.MeshStandardMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.6,
+      metalness: 0.8,
+    });
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.05), visorMat);
+    visor.position.set(0, 0.65, 0.45);
+    group.add(visor);
+    // Stars around it
+    const starMat = new THREE.MeshStandardMaterial({
+      color: 0xffff00,
+      emissive: 0xffdd00,
+      emissiveIntensity: 0.8,
+    });
+    for (let i = 0; i < 3; i++) {
+      const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.12, 0), starMat);
+      const angle = (i / 3) * Math.PI * 2;
+      star.position.set(Math.cos(angle) * 0.6, 1.2, Math.sin(angle) * 0.6);
+      group.add(star);
+    }
+    group.scale.setScalar(0.8);
+    return group;
+  }
+
+  private activateHelmet() {
+    this.helmetMode = true;
+    this.helmetBouncesLeft = 3;
+    this.soundManager.playCollect();
+    // Add big pink helmet to player's head
+    this.helmetMesh = new THREE.Group();
+    const helmetMat = new THREE.MeshStandardMaterial({
+      color: 0xff69b4,
+      metalness: 0.4,
+      roughness: 0.3,
+    });
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.65),
+      helmetMat
+    );
+    dome.scale.set(1.2, 1.1, 1.2);
+    this.helmetMesh.add(dome);
+    this.helmetMesh.position.set(0, 1.5, 0);
+    this.player.group.add(this.helmetMesh);
+    const el = document.getElementById('shield-display')!;
+    el.style.display = 'block';
+    el.textContent = '⛑️ x3';
+  }
+
+  private deactivateHelmet() {
+    this.helmetMode = false;
+    this.helmetBouncesLeft = 0;
+    if (this.helmetMesh) {
+      this.player.group.remove(this.helmetMesh);
+      this.helmetMesh = null;
+    }
+    document.getElementById('shield-display')!.style.display = 'none';
+  }
+
+  private showHelmetBounce() {
+    document.getElementById('shield-display')!.textContent = `⛑️ x${this.helmetBouncesLeft}`;
+    const el = document.createElement('div');
+    el.textContent = 'BOUNCE!';
+    el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff69b4;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
     document.getElementById('ui-overlay')!.appendChild(el);
     requestAnimationFrame(() => { el.style.top = '35%'; el.style.opacity = '0'; });
     setTimeout(() => el.remove(), 600);
