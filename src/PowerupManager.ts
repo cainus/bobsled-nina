@@ -37,9 +37,14 @@ export class PowerupManager {
     this.powerupSpawnTimer += dt;
     if (this.powerupSpawnTimer > 12 + Math.random() * 15) {
       this.powerupSpawnTimer = 0;
+      const isAutumn = this.game.seasonManager.season === 'autumn';
       const types: ('bobsled' | 'metal' | 'snowboard' | 'helmet')[] = ['metal'];
-      if (!this.bobsledShield) types.push('bobsled');
-      if (!this.snowboardMode && this.game.score >= this.nextSnowboardScore) types.push('snowboard');
+      if (!this.bobsledShield) {
+        // Motorbike in autumn, bobsled/snowmobile in other seasons
+        if (!isAutumn) types.push('bobsled');
+        else types.push('bobsled'); // spawns motorbike mesh in autumn (handled in spawnPowerup)
+      }
+      if (!this.snowboardMode && this.game.score >= this.nextSnowboardScore && !isAutumn) types.push('snowboard');
       if (!this.helmetMode) types.push('helmet');
       if (this.metalMode && types.includes('metal')) types.splice(types.indexOf('metal'), 1);
       if (types.length === 0) return;
@@ -145,12 +150,20 @@ export class PowerupManager {
     return 'endGame';
   }
 
+  private getDefaultVehicle(): 'skis' | 'rainbowSkis' | 'mountainBike' {
+    if (this.game.seasonManager.season === 'autumn') return 'mountainBike';
+    return this.game.score >= 1500 ? 'rainbowSkis' : 'skis';
+  }
+
   private spawnPowerup(type: 'bobsled' | 'metal' | 'snowboard' | 'helmet') {
     const lane = Math.floor(Math.random() * 3) - 1;
     const laneY = this.game.laneHeightMap.getHeight(lane, 100);
     let mesh: THREE.Group;
     if (type === 'bobsled') {
-      mesh = this.game.score >= 6000 ? this.createSnowmobileMesh() : this.createPowerupMesh();
+      const isAutumn = this.game.seasonManager.season === 'autumn';
+      mesh = isAutumn ? this.createMotorbikePowerupMesh()
+        : this.game.score >= 6000 ? this.createSnowmobileMesh()
+        : this.createPowerupMesh();
     } else if (type === 'metal') {
       mesh = this.createWalkmanMesh();
     } else if (type === 'snowboard') {
@@ -164,17 +177,23 @@ export class PowerupManager {
   }
 
   private activateShield() {
+    const isAutumn = this.game.seasonManager.season === 'autumn';
     this.bobsledShield = true;
     this.bobsledHitsLeft = 3;
-    this.isSnowmobile = this.game.score >= 6000;
+    this.isSnowmobile = isAutumn || this.game.score >= 6000;
     const v = this.game.player.currentVehicle;
-    if (v !== 'bobsled') {
+    if (v !== 'bobsled' && v !== 'motorbike') {
       this.preShieldVehicle = v as 'skis' | 'snowboard' | 'rainbowSkis';
     }
-    this.game.player.switchVehicle('bobsled');
-    if (this.isSnowmobile) {
-      this.game.player.setVehicleColors(0xddcc00, 0x222222);
+    if (isAutumn) {
+      this.game.player.switchVehicle('motorbike');
       this.game.soundManager.startMotor();
+    } else {
+      this.game.player.switchVehicle('bobsled');
+      if (this.isSnowmobile) {
+        this.game.player.setVehicleColors(0xddcc00, 0x222222);
+        this.game.soundManager.startMotor();
+      }
     }
     if (this.metalMode) {
       this.game.player.setVehicleBlack(true);
@@ -182,21 +201,18 @@ export class PowerupManager {
     this.game.soundManager.playCollect();
     const el = document.getElementById('shield-display')!;
     el.style.display = 'block';
-    el.textContent = this.isSnowmobile ? '🏔️ x3' : '🛷 x3';
+    el.textContent = isAutumn ? '🏍️ x3' : this.isSnowmobile ? '🏔️ x3' : '🛷 x3';
   }
 
   private deactivateShield() {
+    const wasMotorbike = this.game.player.currentVehicle === 'motorbike';
     this.bobsledShield = false;
     this.bobsledHitsLeft = 0;
-    if (this.isSnowmobile) {
+    if (this.isSnowmobile || wasMotorbike) {
       this.game.soundManager.stopMotor();
     }
     this.isSnowmobile = false;
-    if (this.game.score >= 1500) {
-      this.game.player.switchVehicle('rainbowSkis');
-    } else {
-      this.game.player.switchVehicle(this.preShieldVehicle);
-    }
+    this.game.player.switchVehicle(this.getDefaultVehicle());
     document.getElementById('shield-display')!.style.display = 'none';
   }
 
@@ -235,11 +251,7 @@ export class PowerupManager {
   private deactivateSnowboard() {
     this.snowboardMode = false;
     this.game.player.jumpMultiplier = 1;
-    if (this.game.score >= 1500) {
-      this.game.player.switchVehicle('rainbowSkis');
-    } else {
-      this.game.player.switchVehicle('skis');
-    }
+    this.game.player.switchVehicle(this.getDefaultVehicle());
     document.getElementById('shield-display')!.style.display = 'none';
   }
 
@@ -420,7 +432,9 @@ export class PowerupManager {
 
     const slopeLen = Math.sqrt(rampLength * rampLength + rampHeight * rampHeight);
     const angle = Math.atan2(rampHeight, rampLength);
-    const rampMat = new THREE.MeshStandardMaterial({ color: 0xbbeeFF, metalness: 0.2, roughness: 0.3 });
+    const isAutumn = this.game.seasonManager.season === 'autumn';
+    const rampColor = isAutumn ? 0x8B7355 : 0xbbeeFF;
+    const rampMat = new THREE.MeshStandardMaterial({ color: rampColor, metalness: 0.2, roughness: 0.3 });
     const rampGeo = new THREE.BoxGeometry(trackWidth - 0.5, 0.3, slopeLen);
     const ramp = new THREE.Mesh(rampGeo, rampMat);
     ramp.position.set(0, rampHeight / 2, rampLength / 2);
@@ -429,7 +443,7 @@ export class PowerupManager {
     ramp.receiveShadow = true;
     group.add(ramp);
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaddee });
+    const wallMat = new THREE.MeshStandardMaterial({ color: isAutumn ? 0x7a6040 : 0xaaddee });
     for (const side of [-1, 1]) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, slopeLen), wallMat);
       wall.position.set(side * (trackWidth / 2 - 0.1), rampHeight / 2, rampLength / 2);
@@ -438,7 +452,7 @@ export class PowerupManager {
       group.add(wall);
     }
 
-    const supportMat = new THREE.MeshStandardMaterial({ color: 0x99ccdd });
+    const supportMat = new THREE.MeshStandardMaterial({ color: isAutumn ? 0x6b5535 : 0x99ccdd });
     for (let i = 0; i < 3; i++) {
       const t = (i + 1) / 4;
       const supportH = rampHeight * t;
@@ -499,6 +513,41 @@ export class PowerupManager {
     shield.position.y = 1.2;
     group.add(shield);
 
+    group.scale.setScalar(0.8);
+    return group;
+  }
+
+  private createMotorbikePowerupMesh(): THREE.Group {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xcc2222,
+      emissive: 0xaa0000,
+      emissiveIntensity: 0.3,
+      metalness: 0.4,
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 1.4), bodyMat);
+    body.position.y = 0.3;
+    body.castShadow = true;
+    group.add(body);
+    // Wheels
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    for (const z of [-0.6, 0.6]) {
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.08, 8, 12), tireMat);
+      tire.position.set(0, 0.0, z);
+      tire.rotation.y = Math.PI / 2;
+      group.add(tire);
+    }
+    // Shield icon above
+    const shieldMat = new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.6,
+      metalness: 0.8,
+      roughness: 0.1,
+    });
+    const shield = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), shieldMat);
+    shield.position.y = 1.0;
+    group.add(shield);
     group.scale.setScalar(0.8);
     return group;
   }

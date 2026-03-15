@@ -10,6 +10,7 @@ import { LaneHeightMap } from './LaneHeightMap';
 import { PowerupManager } from './PowerupManager';
 import { EnvironmentManager } from './EnvironmentManager';
 import { CollisionManager } from './CollisionManager';
+import { SeasonManager } from './SeasonManager';
 
 export class Game {
   scene: THREE.Scene;
@@ -26,6 +27,7 @@ export class Game {
   powerupManager: PowerupManager;
   environmentManager: EnvironmentManager;
   collisionManager: CollisionManager;
+  seasonManager: SeasonManager;
 
   clock: THREE.Clock;
   running = false;
@@ -44,17 +46,18 @@ export class Game {
 
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
+  groundMesh!: THREE.Mesh;
+  private mountainMeshes: THREE.Object3D[] = [];
+  private currentMountainSeason: string = '';
 
   constructor() {
+    // Minimal setup — actual init is async via load()
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
 
     this.camera = new THREE.PerspectiveCamera(
-      70,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      200
+      70, window.innerWidth / window.innerHeight, 0.1, 200
     );
     this.camera.position.set(0, 12, -14);
     this.camera.lookAt(0, 0, 25);
@@ -68,25 +71,52 @@ export class Game {
 
     this.clock = new THREE.Clock();
     this.laneHeightMap = new LaneHeightMap();
+    this.seasonManager = new SeasonManager();
     this.inputManager = new InputManager();
+    // These are initialized in load() but typed as definite
+    this.player = null!;
+    this.trackManager = null!;
+    this.obstacleManager = null!;
+    this.coinManager = null!;
+    this.particleManager = null!;
+    this.soundManager = null!;
+    this.powerupManager = null!;
+    this.environmentManager = null!;
+    this.collisionManager = null!;
+  }
+
+  async load(onProgress: (pct: number) => void): Promise<void> {
+    const step = (pct: number) => new Promise<void>(resolve => {
+      onProgress(pct);
+      requestAnimationFrame(() => resolve());
+    });
+
+    await step(5);
     this.player = new Player(this);
+
+    await step(15);
+    this.setupLighting();
+    this.setupGround();
+
+    await step(30);
     this.trackManager = new TrackManager(this);
+
+    await step(60);
     this.obstacleManager = new ObstacleManager(this);
     this.coinManager = new CoinManager(this);
+
+    await step(75);
     this.particleManager = new ParticleManager(this);
     this.soundManager = new SoundManager(this);
     this.powerupManager = new PowerupManager(this);
+
+    await step(90);
     this.environmentManager = new EnvironmentManager(this);
     this.collisionManager = new CollisionManager(this);
-
-    this.setupLighting();
-    this.setupGround();
+    this.environmentManager.setLights(this.ambientLight, this.sunLight);
     this.setupResizeHandler();
 
-    // Share light references with environment manager
-    this.environmentManager.setLights(this.ambientLight, this.sunLight);
-
-    // Render initial frame
+    await step(100);
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -120,18 +150,31 @@ export class Game {
   private setupGround() {
     const groundGeo = new THREE.PlaneGeometry(500, 500);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.05;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
+    this.groundMesh = new THREE.Mesh(groundGeo, groundMat);
+    this.groundMesh.rotation.x = -Math.PI / 2;
+    this.groundMesh.position.y = -0.05;
+    this.groundMesh.receiveShadow = true;
+    this.scene.add(this.groundMesh);
 
     this.createMountains();
   }
 
-  private createMountains() {
-    const mountainMat = new THREE.MeshStandardMaterial({ color: 0x8899aa });
-    const snowPeakMat = new THREE.MeshStandardMaterial({ color: 0xf0f4f8 });
+  createMountains() {
+    const season = this.seasonManager.season;
+    if (this.currentMountainSeason === season && this.mountainMeshes.length > 0) return;
+    this.currentMountainSeason = season;
+
+    // Remove old mountains
+    for (const m of this.mountainMeshes) {
+      this.scene.remove(m);
+    }
+    this.mountainMeshes = [];
+
+    const isAutumn = season === 'autumn';
+    const isSummer = season === 'summer';
+
+    const mountainColor = isAutumn ? 0x8a7a55 : isSummer ? 0x5a8a55 : 0x8899aa;
+    const mountainMat = new THREE.MeshStandardMaterial({ color: mountainColor });
 
     const peaks = [
       { x: -70, z: 100, size: 40, height: 60 },
@@ -144,21 +187,138 @@ export class Game {
       { x: 55, z: 120, size: 50, height: 50 },
     ];
 
-    for (const peak of peaks) {
-      const geo = new THREE.ConeGeometry(peak.size, peak.height, 7);
-      const mountain = new THREE.Mesh(geo, mountainMat);
-      mountain.position.set(peak.x, peak.height / 2 - 8, peak.z);
-      mountain.rotation.y = Math.random() * Math.PI;
-      this.scene.add(mountain);
+    // Generate a canvas texture with splotchy autumn tree colors
+    const autumnTexture = isAutumn ? this.createAutumnTreeTexture() : null;
 
-      const capSize = peak.size * 0.5;
-      const capHeight = peak.height * 0.4;
-      const capGeo = new THREE.ConeGeometry(capSize, capHeight, 7);
-      const cap = new THREE.Mesh(capGeo, snowPeakMat);
-      cap.position.set(peak.x, peak.height - 8 - capHeight / 2, peak.z);
-      cap.rotation.y = mountain.rotation.y;
-      this.scene.add(cap);
+    for (const peak of peaks) {
+      const geo = new THREE.ConeGeometry(peak.size, peak.height, 12);
+
+      if (isAutumn) {
+        const autumnMat = new THREE.MeshStandardMaterial({ map: autumnTexture });
+        const mountain = new THREE.Mesh(geo, autumnMat);
+        mountain.position.set(peak.x, peak.height / 2 - 5, peak.z);
+        mountain.rotation.y = Math.random() * Math.PI;
+        this.scene.add(mountain);
+        this.mountainMeshes.push(mountain);
+      } else {
+        const mountain = new THREE.Mesh(geo, mountainMat);
+        mountain.position.set(peak.x, peak.height / 2 - 5, peak.z);
+        mountain.rotation.y = Math.random() * Math.PI;
+        this.scene.add(mountain);
+        this.mountainMeshes.push(mountain);
+        const capColor = isSummer ? 0x4a8a3f : 0xf0f4f8;
+        const capSize = peak.size * 0.5;
+        const capHeight = peak.height * 0.4;
+        const capGeo = new THREE.ConeGeometry(capSize, capHeight, 12);
+        const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: capColor }));
+        cap.position.set(peak.x, peak.height - 5 - capHeight / 2, peak.z);
+        cap.rotation.y = mountain.rotation.y;
+        this.scene.add(cap);
+        this.mountainMeshes.push(cap);
+      }
     }
+
+    // Small wispy clouds around the mountains
+    const cloudMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    });
+    for (let i = 0; i < 8; i++) {
+      const cloud = new THREE.Group();
+      const blobCount = 3 + Math.floor(Math.random() * 3);
+      for (let j = 0; j < blobCount; j++) {
+        const r = 3 + Math.random() * 5;
+        const blob = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 5), cloudMat);
+        blob.position.set(
+          (Math.random() - 0.5) * 8,
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 4
+        );
+        blob.scale.set(1, 0.4 + Math.random() * 0.3, 0.8);
+        cloud.add(blob);
+      }
+      const peak = peaks[Math.floor(Math.random() * peaks.length)];
+      cloud.position.set(
+        peak.x + (Math.random() - 0.5) * peak.size * 0.8,
+        peak.height * (0.3 + Math.random() * 0.4),
+        peak.z + (Math.random() - 0.5) * 20
+      );
+      this.scene.add(cloud);
+      this.mountainMeshes.push(cloud);
+    }
+  }
+
+  private createAutumnTreeTexture(): THREE.CanvasTexture {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Dark ground base — warm brown
+    ctx.fillStyle = '#3a2a18';
+    ctx.fillRect(0, 0, size, size);
+
+    // Fall tree colors — mostly warm tones with some green
+    const treeColors = [
+      '#3a5a28', '#4a6a30',             // evergreen (sparse)
+      '#8a4422', '#9a5528', '#7a3a18', // deep red/maroon
+      '#8a4422', '#9a5528',             // extra maroon weight
+      '#bb7722', '#aa6618', '#cc8833', // golden/amber
+      '#bb7722', '#cc8833',             // extra gold weight
+      '#cc5522', '#bb4418', '#dd6630', // orange
+      '#ddaa22', '#ccaa30', '#dd9920', // bright gold
+      '#6a4a22', '#7a5a2a',             // brown
+      '#aa3320', '#993318',             // red
+    ];
+
+    // Draw hundreds of tiny tree shapes packed together
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const treeH = 3 + Math.random() * 6;
+      const treeW = 2 + Math.random() * 4;
+      const color = treeColors[Math.floor(Math.random() * treeColors.length)];
+
+      ctx.fillStyle = color;
+
+      // Draw a tiny tree: triangle crown with a darker shade at base
+      ctx.beginPath();
+      ctx.moveTo(x, y - treeH);
+      ctx.lineTo(x - treeW / 2, y);
+      ctx.lineTo(x + treeW / 2, y);
+      ctx.closePath();
+      ctx.fill();
+
+      // Second smaller triangle on top for layered look
+      if (Math.random() > 0.4) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - treeH - 1.5);
+        ctx.lineTo(x - treeW * 0.35, y - treeH * 0.4);
+        ctx.lineTo(x + treeW * 0.35, y - treeH * 0.4);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Add shadow/depth between trees
+    for (let i = 0; i < 200; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const r = 1 + Math.random() * 3;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 20, 8, 0.5)';
+      ctx.fill();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(3, 3);
+    return texture;
   }
 
   private setupResizeHandler() {
@@ -175,10 +335,32 @@ export class Game {
     this.score = 0;
     this.coins = 0;
     this.speed = this.baseSpeed;
+
+    // Apply season before rebuilding track so chunks match
+    this.seasonManager.update(0);
+    this.environmentManager.updateEnvironment();
+    this.currentMountainSeason = '';
+    this.createMountains();
+    this.laneHeightMap.reset();
+    this.trackManager.reset();
+
     this.clock.start();
     this.soundManager.startSliding();
     this.soundManager.loadGrunts();
     this.soundManager.loadGrowls();
+    this.renderer.render(this.scene, this.camera);
+    this.update();
+  }
+
+  pause() {
+    this.running = false;
+    document.getElementById('pause-screen')!.style.display = 'flex';
+  }
+
+  resume() {
+    this.running = true;
+    document.getElementById('pause-screen')!.style.display = 'none';
+    this.clock.start();
     this.update();
   }
 
@@ -195,6 +377,8 @@ export class Game {
     this.environmentManager.resetBears();
     this.powerupManager.reset();
     this.environmentManager.resetEnvironment();
+    this.seasonManager.update(0);
+    this.currentMountainSeason = '';
     this.player.reset();
     this.trackManager.reset();
     this.start();
@@ -219,7 +403,7 @@ export class Game {
     // Increase speed over time
     const steepnessBoost = steepness * 12;
     let modeBoost = 0;
-    if (this.metalMode) modeBoost = this.maxSpeed * 0.5;
+    if (this.metalMode) modeBoost = this.maxSpeed * 1.0;
     if (this.isSnowmobile) modeBoost = Math.max(modeBoost, this.maxSpeed * 1.0);
     this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost + modeBoost);
 
@@ -258,23 +442,25 @@ export class Game {
     document.getElementById('score')!.textContent = this.score.toString();
     document.getElementById('coins-display')!.textContent = `Snowflakes: ${this.coins}`;
 
-    // Vehicle upgrades based on score
+    // Vehicle upgrades based on score (not in autumn — mountain bike stays)
     if (!this.powerupManager.bobsledShield && !this.snowboardMode) {
-      if (this.score >= 1500) {
+      if (this.seasonManager.season === 'autumn') {
+        if (this.player.currentVehicle !== 'mountainBike' && this.player.currentVehicle !== 'bobsled') {
+          this.player.switchVehicle('mountainBike');
+        }
+      } else if (this.score >= 1500) {
         this.player.switchVehicle('rainbowSkis');
       }
-    }
-
-    // Wind at 1300 points
-    if (this.score >= 1300) {
-      this.soundManager.startWind();
     }
 
     // Bears
     this.environmentManager.updateBears(dt);
 
-    // Environment transitions
+    // Environment transitions (handles wind, night, seasons)
     this.environmentManager.updateEnvironment();
+
+    // Update mountains if season changed
+    this.createMountains();
 
     // Render
     this.renderer.render(this.scene, this.camera);

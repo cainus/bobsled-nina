@@ -50,7 +50,7 @@
       font-weight: bold;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
     }
-    #start-screen, #game-over-screen {
+    #start-screen, #game-over-screen, #pause-screen {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
@@ -60,7 +60,7 @@
       background: rgba(0,0,0,0.7);
       pointer-events: all;
     }
-    #game-over-screen { display: none; }
+    #game-over-screen, #pause-screen { display: none; }
     h1 {
       font-size: 72px;
       color: #fff;
@@ -87,6 +87,7 @@
     }
     .btn:hover { transform: scale(1.05); }
     .btn:active { transform: scale(0.95); }
+    .season-btn { background: linear-gradient(135deg, #ff6b9d, #c44dff); }
     .controls-hint {
       color: #888;
       font-size: 16px;
@@ -114,8 +115,25 @@
     <div id="start-screen">
       <h1>Bobsled <span>Niña</span></h1>
       <div class="subtitle">An endless bobsled adventure!</div>
-      <button class="btn" id="start-btn">START</button>
-      <div class="controls-hint">← → or A/D to switch lanes &nbsp;|&nbsp; ↑ or W to jump &nbsp;|&nbsp; ↓ or S to duck</div>
+      <div id="season-picker" style="display:none;margin-bottom:24px">
+        <div class="subtitle" style="margin-bottom:10px;color:#aad4ff">Pick a season to start</div>
+        <div style="display:flex;gap:12px">
+          <button class="btn season-btn" data-season="winter" style="padding:10px 22px;font-size:18px">Winter</button>
+          <button class="btn season-btn" data-season="summer" style="padding:10px 22px;font-size:18px">Summer</button>
+          <button class="btn season-btn" data-season="autumn" style="padding:10px 22px;font-size:18px">Autumn</button>
+        </div>
+      </div>
+      <div id="loading-text" class="subtitle" style="color:#ff6b9d">Loading... 0%</div>
+      <div id="loading-bar-bg" style="width:220px;height:8px;background:rgba(255,255,255,0.15);border-radius:4px;margin-top:12px;overflow:hidden">
+        <div id="loading-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#ff6b9d,#c44dff);border-radius:4px;transition:width 0.15s"></div>
+      </div>
+      <div class="controls-hint" id="controls-hint" style="display:none">← → or A/D to switch lanes &nbsp;|&nbsp; ↑ or W to jump &nbsp;|&nbsp; ↓ or S to duck</div>
+    </div>
+
+    <div id="pause-screen">
+      <h1>Paused</h1>
+      <button class="btn" id="continue-btn" style="margin-bottom:16px">CONTINUE</button>
+      <button class="btn" id="pause-restart-btn">RESTART</button>
     </div>
 
     <div id="game-over-screen">

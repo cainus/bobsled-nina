@@ -10,7 +10,8 @@ export interface Obstacle {
   isPineTree?: boolean;
 }
 
-type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree';
+type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree'
+  | 'floaty' | 'turtle' | 'seashell' | 'leafPile' | 'oakTree' | 'log';
 
 export class ObstacleManager {
   game: Game;
@@ -54,10 +55,20 @@ export class ObstacleManager {
   }
 
   private spawnObstacle() {
-    const types: ObstacleType[] = ['rock', 'pineTree', 'lowObstacle', 'treeBranch', 'largeTree'];
+    const season = this.game.seasonManager.season;
+    let types: ObstacleType[];
+    if (season === 'summer') {
+      types = ['floaty', 'turtle', 'rock', 'seashell'];
+    } else if (season === 'autumn') {
+      types = ['leafPile', 'oakTree', 'rock', 'log', 'leafPile', 'treeBranch', 'largeTree'];
+    } else {
+      types = ['rock', 'pineTree', 'lowObstacle', 'treeBranch', 'largeTree'];
+      // Snowmen are rare — 5% chance
+      if (Math.random() < 0.05) {
+        types = ['snowman'];
+      }
+    }
     let type: ObstacleType = types[Math.floor(Math.random() * types.length)];
-    // Snowmen are rare — 5% chance
-    if (Math.random() < 0.05) type = 'snowman';
 
     if (type === 'largeTree') {
       // Large tree that spans 2 adjacent lanes
@@ -331,6 +342,169 @@ export class ObstacleManager {
         break;
       }
 
+      case 'floaty': {
+        // Round pool floaty — colorful torus
+        const colors = [0xff69b4, 0xff4444, 0x44aaff, 0xffcc00, 0x44dd44];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const floatyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.4 });
+        const torus = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.25, 10, 16), floatyMat);
+        torus.position.y = 0.35;
+        torus.rotation.x = Math.PI / 2;
+        torus.castShadow = true;
+        group.add(torus);
+        // White stripe
+        const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.08, 8, 16), stripeMat);
+        stripe.position.y = 0.35;
+        stripe.rotation.x = Math.PI / 2;
+        group.add(stripe);
+        break;
+      }
+
+      case 'turtle': {
+        // Sea turtle — green dome shell with flippers
+        const shellMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.7 });
+        const shell = new THREE.Mesh(
+          new THREE.SphereGeometry(0.6, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.5),
+          shellMat
+        );
+        shell.position.y = 0.15;
+        shell.castShadow = true;
+        group.add(shell);
+        // Shell pattern
+        const patternMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20 });
+        for (let i = 0; i < 6; i++) {
+          const hex = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 6), patternMat);
+          const a = (i / 6) * Math.PI * 2;
+          hex.position.set(Math.sin(a) * 0.3, 0.45, Math.cos(a) * 0.3);
+          hex.rotation.x = Math.PI / 2 - 0.3;
+          group.add(hex);
+        }
+        // Head
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), skinMat);
+        head.position.set(0, 0.2, -0.65);
+        group.add(head);
+        // Eyes
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        for (const side of [-0.08, 0.08]) {
+          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMat);
+          eye.position.set(side, 0.28, -0.75);
+          group.add(eye);
+        }
+        // Flippers
+        for (const side of [-1, 1]) {
+          const flipper = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.2), skinMat);
+          flipper.position.set(side * 0.55, 0.1, -0.1);
+          flipper.rotation.y = side * 0.4;
+          group.add(flipper);
+        }
+        break;
+      }
+
+      case 'seashell': {
+        // Spiral seashell
+        const shellMat = new THREE.MeshStandardMaterial({ color: 0xfce4b8, roughness: 0.5 });
+        const innerMat = new THREE.MeshStandardMaterial({ color: 0xffb6c1 });
+        // Main shell body — cone spiral approximation
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.0, 12), shellMat);
+        cone.position.y = 0.5;
+        cone.rotation.z = 0.3;
+        cone.castShadow = true;
+        group.add(cone);
+        // Spiral ridges
+        for (let i = 0; i < 4; i++) {
+          const ridge = new THREE.Mesh(new THREE.TorusGeometry(0.35 - i * 0.06, 0.03, 6, 12), shellMat);
+          ridge.position.set(0, 0.3 + i * 0.18, 0);
+          ridge.rotation.x = Math.PI / 2;
+          group.add(ridge);
+        }
+        // Opening
+        const opening = new THREE.Mesh(new THREE.CircleGeometry(0.25, 10), innerMat);
+        opening.position.set(0, 0.2, 0.15);
+        opening.rotation.x = -0.3;
+        group.add(opening);
+        group.scale.setScalar(1.2);
+        break;
+      }
+
+      case 'leafPile': {
+        // Pile of autumn-colored leaves
+        const leafColors = [0xcc3333, 0xff8800, 0xffcc00, 0x88aa22, 0x8B4513];
+        const pileCount = 8 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < pileCount; i++) {
+          const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+          const leafMat = new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
+          const leaf = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2 + Math.random() * 0.15, 6, 4),
+            leafMat
+          );
+          leaf.scale.set(1, 0.3, 1.2);
+          leaf.position.set(
+            (Math.random() - 0.5) * 0.8,
+            0.1 + Math.random() * 0.3,
+            (Math.random() - 0.5) * 0.8
+          );
+          leaf.rotation.set(Math.random() * 0.5, Math.random() * Math.PI, Math.random() * 0.3);
+          group.add(leaf);
+        }
+        break;
+      }
+
+      case 'oakTree': {
+        // Oak tree obstacle on the lane
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2, 8), trunkMat);
+        trunk.position.y = 1;
+        trunk.castShadow = true;
+        group.add(trunk);
+        const leafColors = [0xcc3333, 0xff8800, 0xffcc00, 0x6b8e23];
+        for (let i = 0; i < 4; i++) {
+          const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+          const foliage = new THREE.Mesh(
+            new THREE.SphereGeometry(0.6 + Math.random() * 0.2, 8, 6),
+            new THREE.MeshStandardMaterial({ color })
+          );
+          const a = (i / 4) * Math.PI * 2;
+          foliage.position.set(Math.sin(a) * 0.3, 2.2 + Math.random() * 0.5, Math.cos(a) * 0.3);
+          foliage.castShadow = true;
+          group.add(foliage);
+        }
+        break;
+      }
+
+      case 'log': {
+        // Fallen log — reuse the winter log obstacle
+        const barkMat = new THREE.MeshStandardMaterial({ color: 0x6d4c2e, roughness: 0.9 });
+        const logGeo = new THREE.CylinderGeometry(0.25, 0.3, 2.4, 8);
+        const log = new THREE.Mesh(logGeo, barkMat);
+        log.rotation.z = Math.PI / 2;
+        log.rotation.y = (Math.random() - 0.5) * 0.6;
+        log.position.y = 0.3;
+        log.castShadow = true;
+        group.add(log);
+        const endMat = new THREE.MeshStandardMaterial({ color: 0xc4a46c, roughness: 0.7 });
+        for (const side of [-1.2, 1.2]) {
+          const endCap = new THREE.Mesh(new THREE.CircleGeometry(0.27, 8), endMat);
+          endCap.position.set(side, 0.3, 0);
+          endCap.rotation.y = Math.sign(side) * Math.PI / 2;
+          group.add(endCap);
+        }
+        // Some leaves on top instead of snow
+        const leafColors = [0xcc3333, 0xff8800, 0xffcc00];
+        for (let i = 0; i < 3; i++) {
+          const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+          const leaf = new THREE.Mesh(
+            new THREE.SphereGeometry(0.12, 5, 4),
+            new THREE.MeshStandardMaterial({ color })
+          );
+          leaf.scale.set(1, 0.3, 1);
+          leaf.position.set((Math.random() - 0.5) * 1.5, 0.55, (Math.random() - 0.5) * 0.2);
+          group.add(leaf);
+        }
+        break;
+      }
+
     }
 
     return group;
@@ -338,8 +512,9 @@ export class ObstacleManager {
 
   private createLargeTree(): THREE.Group {
     const group = new THREE.Group();
+    const isAutumn = this.game.seasonManager.season === 'autumn';
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3527 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x254a38 });
+    const fallLeafColors = [0xcc3333, 0xff8800, 0xffcc00, 0x6b8e23, 0x8B4513];
 
     // Thick trunk
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4, 8), trunkMat);
@@ -347,7 +522,8 @@ export class ObstacleManager {
     trunk.castShadow = true;
     group.add(trunk);
 
-    // Large foliage layers
+    // Foliage layers — pine stays green in all seasons
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x254a38 });
     for (let i = 0; i < 4; i++) {
       const cone = new THREE.Mesh(
         new THREE.ConeGeometry(2.5 - i * 0.4, 2.0, 8), leafMat);
@@ -356,25 +532,30 @@ export class ObstacleManager {
       group.add(cone);
     }
 
-    // Snow on top layers
-    const snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
-    for (let i = 0; i < 3; i++) {
-      const snow = new THREE.Mesh(
-        new THREE.ConeGeometry(2.2 - i * 0.4, 0.4, 8), snowMat);
-      snow.position.y = 4.3 + i * 1.2;
-      group.add(snow);
+    if (!isAutumn) {
+      // Snow on top layers (winter only)
+      const snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+      for (let i = 0; i < 3; i++) {
+        const snow = new THREE.Mesh(
+          new THREE.ConeGeometry(2.2 - i * 0.4, 0.4, 8), snowMat);
+        snow.position.y = 4.3 + i * 1.2;
+        group.add(snow);
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.6, 8), snowMat);
+      cap.position.y = 8.5;
+      group.add(cap);
     }
-
-    // Snow cap
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.6, 8), snowMat);
-    cap.position.y = 8.5;
-    group.add(cap);
 
     return group;
   }
 
   private buildRockVariant(group: THREE.Group, variant: number) {
-    const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
+    const isAutumn = this.game.seasonManager.season === 'autumn';
+    const fallLeafColors = [0xcc3333, 0xff8800, 0xffcc00, 0x6b8e23, 0x8B4513];
+    const capColor = isAutumn
+      ? fallLeafColors[Math.floor(Math.random() * fallLeafColors.length)]
+      : 0xfafafa;
+    const snowCapMat = new THREE.MeshStandardMaterial({ color: capColor });
 
     switch (variant) {
       case 0: {
@@ -469,8 +650,8 @@ export class ObstacleManager {
   private createTreeBranch(numLanes: number, fromLeft: boolean): { group: THREE.Group; collider: THREE.Object3D } {
     const group = new THREE.Group();
     const lw = this.game.laneWidth;
+    const isAutumn = this.game.seasonManager.season === 'autumn';
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
 
     // Tree trunk on one side of the track
     const side = fromLeft ? -1 : 1;
@@ -481,7 +662,8 @@ export class ObstacleManager {
     trunk.castShadow = true;
     group.add(trunk);
 
-    // Pine foliage on the trunk
+    // Pine foliage on the trunk — always green
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b5440 });
     for (let i = 0; i < 3; i++) {
       const foliageGeo = new THREE.ConeGeometry(1.4 - i * 0.3, 1.8, 8);
       const foliage = new THREE.Mesh(foliageGeo, leafMat);
@@ -511,13 +693,12 @@ export class ObstacleManager {
     colliderMesh.rotation.y = branchAngle;
     group.add(colliderMesh);
 
-    // Pine needle clumps and snow on the branch
+    // Clumps on the branch — needles (no snow in autumn)
     const clumpCount = numLanes * 3;
     for (let i = 0; i < clumpCount; i++) {
       const t = (i + 0.5) / clumpCount;
       const cx = trunkX + (-side * branchLength * t);
-      const isSnow = Math.random() > 0.5;
-      if (isSnow) {
+      if (!isAutumn && Math.random() > 0.5) {
         const snowGeo = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 5, 4);
         const snowClump = new THREE.Mesh(snowGeo, new THREE.MeshStandardMaterial({ color: 0xfafafa }));
         snowClump.position.set(cx, 2.15 + Math.random() * 0.2, (Math.random() - 0.5) * 0.4);

@@ -37,10 +37,13 @@ export class Player {
   private vehicle!: THREE.Group;
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
-  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' = 'skis';
+  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' = 'skis';
   private isMetalMode = false;
   private readonly outfitColor = 0x2196f3;
   private readonly metalColor = 0x111111;
+  private crankGroup: THREE.Group | null = null;
+  private leftLeg: THREE.Group | null = null;
+  private rightLeg: THREE.Group | null = null;
 
   constructor(game: Game) {
     this.game = game;
@@ -51,7 +54,7 @@ export class Player {
     game.scene.add(this.group);
   }
 
-  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis') {
+  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike') {
     if (this.currentVehicle === type) return;
     this.currentVehicle = type;
     // Remove old vehicle and character, rebuild
@@ -61,8 +64,10 @@ export class Player {
     this.buildCharacter();
   }
 
-  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis') {
+  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike') {
     this.vehicle = new THREE.Group();
+
+    this.crankGroup = null;
 
     switch (type) {
       case 'bobsled':
@@ -76,6 +81,12 @@ export class Player {
         break;
       case 'rainbowSkis':
         this.buildRainbowSkisParts();
+        break;
+      case 'mountainBike':
+        this.buildMountainBikeParts();
+        break;
+      case 'motorbike':
+        this.buildMotorbikeParts();
         break;
     }
 
@@ -291,6 +302,204 @@ export class Player {
       edge.position.set(side, -0.05, 0.2);
       this.vehicle.add(edge);
     }
+  }
+
+  private buildMountainBikeParts() {
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xcc4400, metalness: 0.5, roughness: 0.3 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+
+    // Wheels — rotate into YZ plane so they face sideways (thin edge toward camera)
+    for (const z of [-0.8, 0.8]) {
+      // Tire
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.1, 10, 16), tireMat);
+      tire.position.set(0, 0.0, z);
+      tire.rotation.y = Math.PI / 2;
+      tire.castShadow = true;
+      this.vehicle.add(tire);
+      // Rim
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.03, 8, 16), metalMat);
+      rim.position.set(0, 0.0, z);
+      rim.rotation.y = Math.PI / 2;
+      this.vehicle.add(rim);
+      // Hub — axle runs along X
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 8), metalMat);
+      hub.position.set(0, 0.0, z);
+      hub.rotation.z = Math.PI / 2;
+      this.vehicle.add(hub);
+      // Spokes — radiate in YZ plane
+      for (let i = 0; i < 8; i++) {
+        const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.32, 4), metalMat);
+        const angle = (i / 8) * Math.PI * 2;
+        spoke.position.set(0, Math.sin(angle) * 0.16, z + Math.cos(angle) * 0.16);
+        spoke.rotation.x = angle;
+        this.vehicle.add(spoke);
+      }
+    }
+
+    // Frame — diamond shape connecting wheels
+    // Down tube (bottom bracket to front)
+    const downTube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), frameMat);
+    downTube.position.set(0, 0.15, 0);
+    downTube.rotation.x = Math.PI / 2;
+    this.vehicle.add(downTube);
+
+    // Seat tube (vertical)
+    const seatTube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), frameMat);
+    seatTube.position.set(0, 0.35, -0.3);
+    this.vehicle.add(seatTube);
+
+    // Top tube
+    const topTube = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.0, 6), frameMat);
+    topTube.position.set(0, 0.6, 0.1);
+    topTube.rotation.x = Math.PI / 2;
+    this.vehicle.add(topTube);
+
+    // Fork to front wheel
+    for (const side of [-0.04, 0.04]) {
+      const fork = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), metalMat);
+      fork.position.set(side, 0.25, 0.7);
+      fork.rotation.x = 0.15;
+      this.vehicle.add(fork);
+    }
+
+    // Handlebars
+    const handlebar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 6), blackMat);
+    handlebar.position.set(0, 0.65, 0.75);
+    handlebar.rotation.z = Math.PI / 2;
+    this.vehicle.add(handlebar);
+    // Grips
+    for (const side of [-0.35, 0.35]) {
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 8), blackMat);
+      grip.position.set(side, 0.65, 0.75);
+      grip.rotation.z = Math.PI / 2;
+      this.vehicle.add(grip);
+    }
+
+    // Seat
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.35), blackMat);
+    seat.position.set(0, 0.72, -0.3);
+    this.vehicle.add(seat);
+
+    // Pedals/cranks — rotating crank group
+    const crankMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.7 });
+    this.crankGroup = new THREE.Group();
+    this.crankGroup.position.set(0, -0.05, 0);
+    for (const side of [-0.15, 0.15]) {
+      const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.06), crankMat);
+      pedal.position.set(side, 0, 0);
+      this.crankGroup.add(pedal);
+    }
+    // Crank arm connecting the two pedals
+    const crankArm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 6), crankMat);
+    crankArm.rotation.z = Math.PI / 2;
+    this.crankGroup.add(crankArm);
+    this.vehicle.add(this.crankGroup);
+  }
+
+  private buildMotorbikeParts() {
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6, roughness: 0.3 });
+    const redMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, metalness: 0.4, roughness: 0.3 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.8, roughness: 0.2 });
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+
+    // Wheels
+    for (const z of [-0.9, 0.9]) {
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.12, 10, 16), tireMat);
+      tire.position.set(0, 0.0, z);
+      tire.rotation.y = Math.PI / 2;
+      tire.castShadow = true;
+      this.vehicle.add(tire);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.03, 8, 16), chromeMat);
+      rim.position.set(0, 0.0, z);
+      rim.rotation.y = Math.PI / 2;
+      this.vehicle.add(rim);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.14, 8), metalMat);
+      hub.position.set(0, 0.0, z);
+      hub.rotation.z = Math.PI / 2;
+      this.vehicle.add(hub);
+    }
+
+    // Engine block — chunky box between wheels
+    const engine = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.6), frameMat);
+    engine.position.set(0, -0.05, 0);
+    engine.castShadow = true;
+    this.vehicle.add(engine);
+
+    // Exhaust pipes
+    for (const side of [-0.3, 0.3]) {
+      const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.8, 8), chromeMat);
+      exhaust.position.set(side, -0.1, -0.6);
+      exhaust.rotation.x = 0.3;
+      this.vehicle.add(exhaust);
+    }
+
+    // Fuel tank — red, on top of frame
+    const tank = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.4, 8, 12), redMat);
+    tank.position.set(0, 0.3, 0.1);
+    tank.rotation.x = Math.PI / 2;
+    tank.castShadow = true;
+    this.vehicle.add(tank);
+
+    // Frame tubes
+    // Down tube to front wheel
+    const downTube = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.4, 6), frameMat);
+    downTube.position.set(0, 0.1, 0);
+    downTube.rotation.x = Math.PI / 2;
+    this.vehicle.add(downTube);
+    // Seat stay to rear
+    const seatStay = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.8, 6), frameMat);
+    seatStay.position.set(0, 0.15, -0.45);
+    seatStay.rotation.x = 0.5;
+    this.vehicle.add(seatStay);
+
+    // Front forks
+    for (const side of [-0.05, 0.05]) {
+      const fork = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.6, 6), chromeMat);
+      fork.position.set(side, 0.2, 0.75);
+      fork.rotation.x = 0.2;
+      this.vehicle.add(fork);
+    }
+
+    // Handlebars
+    const handlebar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.8, 6), frameMat);
+    handlebar.position.set(0, 0.55, 0.8);
+    handlebar.rotation.z = Math.PI / 2;
+    this.vehicle.add(handlebar);
+    // Grips
+    for (const side of [-0.4, 0.4]) {
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8),
+        new THREE.MeshStandardMaterial({ color: 0x333333 }));
+      grip.position.set(side, 0.55, 0.8);
+      grip.rotation.z = Math.PI / 2;
+      this.vehicle.add(grip);
+    }
+
+    // Seat
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.08, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x333333 }));
+    seat.position.set(0, 0.45, -0.35);
+    this.vehicle.add(seat);
+
+    // Headlight
+    const headlightMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffff88, emissiveIntensity: 0.3 });
+    const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), headlightMat);
+    headlight.position.set(0, 0.35, 0.95);
+    this.vehicle.add(headlight);
+
+    // Rear fender
+    const fender = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.5), frameMat);
+    fender.position.set(0, 0.15, -0.7);
+    fender.rotation.x = -0.2;
+    this.vehicle.add(fender);
+
+    // Tail light
+    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.2 });
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.04), tailMat);
+    tail.position.set(0, 0.2, -0.95);
+    this.vehicle.add(tail);
   }
 
   private buildCharacter() {
@@ -531,33 +740,53 @@ export class Player {
       this.character.add(thumb);
     }
 
-    // --- Legs --- capsule-shaped
+    // --- Legs --- capsule-shaped, grouped for pedaling animation
+    this.leftLeg = null;
+    this.rightLeg = null;
+    const isBike = this.currentVehicle === 'mountainBike';
+    const legSides: [number, THREE.Group | null][] = [];
+
     for (const side of [-0.15, 0.15]) {
+      const legGroup = isBike ? new THREE.Group() : null;
+      const parent = legGroup ?? this.character;
+
       // Thigh
       const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.15, 6, 12), pantsMat);
-      thigh.position.set(side, 0.35, 0.05);
-      thigh.rotation.x = -0.15;
       thigh.castShadow = true;
-      this.character.add(thigh);
-
       // Shin
       const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.12, 6, 12), pantsMat);
-      shin.position.set(side, 0.12, 0.1);
-      shin.rotation.x = -0.1;
       shin.castShadow = true;
-      this.character.add(shin);
-
-      // Boot — rounded box-ish
+      // Boot
       const boot = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.1, 6, 12), darkMat);
-      boot.position.set(side, 0.02, 0.16);
       boot.rotation.x = Math.PI / 2;
       boot.scale.set(1, 1.3, 0.8);
-      this.character.add(boot);
-
       // Boot sole
       const sole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.28), darkMat);
-      sole.position.set(side, -0.04, 0.16);
-      this.character.add(sole);
+
+      if (isBike) {
+        // Position relative to leg group pivot (at hip)
+        thigh.position.set(0, -0.15, 0);
+        shin.position.set(0, -0.38, 0.05);
+        boot.position.set(0, -0.48, 0.1);
+        sole.position.set(0, -0.54, 0.1);
+        parent.add(thigh, shin, boot, sole);
+        legGroup!.position.set(side, 0.5, 0.05);
+        this.character.add(legGroup!);
+      } else {
+        thigh.position.set(side, 0.35, 0.05);
+        thigh.rotation.x = -0.15;
+        shin.position.set(side, 0.12, 0.1);
+        shin.rotation.x = -0.1;
+        boot.position.set(side, 0.02, 0.16);
+        sole.position.set(side, -0.04, 0.16);
+        parent.add(thigh, shin, boot, sole);
+      }
+      legSides.push([side, legGroup]);
+    }
+
+    if (isBike) {
+      this.leftLeg = legSides[0][1];
+      this.rightLeg = legSides[1][1];
     }
 
     this.character.position.y = 0.15;
@@ -651,6 +880,9 @@ export class Player {
     this.spinning = false;
     this.backflipping = false;
     this.doubleJumpReady = false;
+    this.crankGroup = null;
+    this.leftLeg = null;
+    this.rightLeg = null;
     this.currentLane = 0;
     this.targetLane = 0;
     this.isJumping = false;
@@ -663,8 +895,9 @@ export class Player {
     while (this.group.children.length > 0) {
       this.group.remove(this.group.children[0]);
     }
-    this.currentVehicle = 'skis';
-    this.buildVehicle('skis');
+    const defaultVehicle = this.game.seasonManager.season === 'autumn' ? 'mountainBike' : 'skis';
+    this.currentVehicle = defaultVehicle;
+    this.buildVehicle(defaultVehicle);
     this.buildCharacter();
   }
 
@@ -816,6 +1049,18 @@ export class Player {
         this.isDucking = false;
         this.character.scale.copy(this.normalCharacterScale);
         this.character.position.y = 0.15;
+      }
+    }
+
+    // Animate mountain bike pedals and legs
+    if (this.crankGroup && !this.isJumping) {
+      this.crankGroup.rotation.x += dt * this.game.speed * 0.3;
+      const pedalAngle = this.crankGroup.rotation.x;
+      if (this.leftLeg) {
+        this.leftLeg.rotation.x = Math.sin(pedalAngle) * 0.6;
+      }
+      if (this.rightLeg) {
+        this.rightLeg.rotation.x = Math.sin(pedalAngle + Math.PI) * 0.6;
       }
     }
 

@@ -34,13 +34,17 @@ export class ParticleManager {
   }
 
   update(dt: number) {
-    // Start snowfall at 1000 points
-    if (!this.snowActive && this.game.score >= 1000) {
+    // Snowfall only in winter
+    const isWinter = this.game.seasonManager.season === 'winter';
+    if (!this.snowActive && isWinter && this.game.score >= 1000) {
       this.startSnowfall();
     }
+    if (this.snowActive && !isWinter) {
+      this.stopSnowfall();
+    }
 
-    // Blizzard extra snowflakes
-    const isBlizzard = this.game.score >= 6000 && this.game.score < 7000;
+    // Blizzard only in winter
+    const isBlizzard = isWinter && this.game.environmentManager.isBlizzard;
     if (isBlizzard && !this.blizzardActive) {
       this.startBlizzardFlakes();
     } else if (!isBlizzard && this.blizzardActive) {
@@ -161,11 +165,27 @@ export class ParticleManager {
     }
   }
 
+  private stopSnowfall() {
+    this.snowActive = false;
+    for (const f of this.snowflakes) {
+      this.game.scene.remove(f);
+    }
+    this.snowflakes = [];
+  }
+
   private updateSnowfall(dt: number) {
     const playerZ = this.game.player.group.position.z;
     const windy = this.game.score >= 1300;
     const blizzard = this.game.score >= 6000 && this.game.score < 7000;
+    const isNight = this.game.environmentManager.isNight;
+
+    // At night, hide most snowflakes so visibility stays clear
+    for (let i = 0; i < this.snowflakes.length; i++) {
+      this.snowflakes[i].visible = !isNight || i < 20;
+    }
+
     for (const flake of this.snowflakes) {
+      if (!flake.visible) continue;
       const fallSpeed = blizzard ? 6 + Math.random() * 2 : 3 + Math.random() * 0.5;
       flake.position.y -= fallSpeed * dt;
       if (blizzard) {

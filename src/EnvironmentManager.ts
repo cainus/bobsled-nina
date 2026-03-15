@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Game } from './Game';
+import type { Season, TimeOfDay } from './SeasonManager';
 
 export class EnvironmentManager {
   game: Game;
@@ -11,6 +12,7 @@ export class EnvironmentManager {
   steepnessTimer = 0;
 
   private stars: THREE.Points | null = null;
+  private moon: THREE.Mesh | null = null;
   private npcSnowmobiles: THREE.Group[] = [];
   private headlight: THREE.SpotLight | null = null;
 
@@ -19,6 +21,9 @@ export class EnvironmentManager {
 
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
+
+  private prevSeason: Season = 'winter';
+  private prevTime: TimeOfDay = 'morning';
 
   constructor(game: Game) {
     this.game = game;
@@ -39,53 +44,74 @@ export class EnvironmentManager {
   }
 
   updateEnvironment() {
-    // Blizzard: 6000-7000 points
-    if (this.game.score >= 6000 && this.game.score < 7000) {
-      if (!this.isBlizzard) {
-        this.isBlizzard = true;
-        this.game.soundManager.setWindVolume(0.45);
-      }
-    } else if (this.isBlizzard) {
+    const sm = this.game.seasonManager;
+    sm.update(this.game.score);
+    const config = sm.getConfig();
+    const season = sm.season;
+    const time = sm.timeOfDay;
+
+    // Update sky and fog
+    const bgColor = new THREE.Color(config.skyColor);
+    this.game.scene.background = bgColor;
+    const fogNear = time === 'night' ? 60 : 50;
+    const fogFar = time === 'night' ? 160 : 140;
+    this.game.scene.fog = new THREE.Fog(new THREE.Color(config.fogColor), fogNear, fogFar);
+
+    // Update lighting
+    this.ambientLight.intensity = config.ambientIntensity;
+    this.sunLight.intensity = config.sunIntensity;
+    this.sunLight.color.setHex(config.sunColor);
+
+    this.isNight = time === 'night';
+
+    // Update ground plane color per season
+    const groundMat = this.game.groundMesh.material as THREE.MeshStandardMaterial;
+    if (season === 'summer') {
+      groundMat.color.setHex(0x4a8c3f);
+    } else if (season === 'autumn') {
+      groundMat.color.setHex(0x5a8a45);
+    } else {
+      groundMat.color.setHex(0xf0f0f0);
+    }
+
+    // Stars at night
+    if (config.showStars && !this.stars) {
+      this.createStars();
+    }
+    if (!config.showStars && this.stars) {
+      this.game.scene.remove(this.stars);
+      this.stars = null;
+    }
+
+    // Bright moon at night (especially summer/autumn)
+    if (this.isNight && !this.moon) {
+      this.createMoon(season);
+    }
+    if (!this.isNight && this.moon) {
+      this.game.scene.remove(this.moon);
+      this.moon = null;
+    }
+
+    // Blizzard only in winter, 6000-7000 within winter's score range
+    const winterBlizzard = season === 'winter' && time === 'night';
+    if (winterBlizzard && !this.isBlizzard) {
+      this.isBlizzard = true;
+      this.game.soundManager.setWindVolume(0.45);
+    } else if (!winterBlizzard && this.isBlizzard) {
       this.isBlizzard = false;
       this.game.soundManager.setWindVolume(0.18);
     }
 
-    // Night: 5000-20000 points
-    if (this.game.score >= 5000 && this.game.score < 20000) {
-      if (!this.isNight) {
-        this.isNight = true;
-        this.createStars();
-      }
-      const nightProgress = Math.min((this.game.score - 5000) / 1000, 1);
-      const bgR = 0x87 * (1 - nightProgress * 0.85);
-      const bgG = 0xce * (1 - nightProgress * 0.85);
-      const bgB = 0xeb * (1 - nightProgress * 0.7);
-      const bgColor = new THREE.Color(bgR / 255, bgG / 255, bgB / 255);
-      this.game.scene.background = bgColor;
-      this.game.scene.fog = new THREE.Fog(bgColor, 60, 140);
-      this.ambientLight.intensity = 0.6 - nightProgress * 0.35;
-      this.sunLight.intensity = 1.0 - nightProgress * 0.7;
-      this.sunLight.color.setHex(
-        nightProgress > 0.5 ? 0x8888cc : 0xffffff
-      );
-    } else if (this.game.score >= 20000 && this.isNight) {
-      this.isNight = false;
-      this.game.scene.background = new THREE.Color(0x87ceeb);
-      this.game.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
-      this.ambientLight.intensity = 0.6;
-      this.sunLight.intensity = 1.0;
-      this.sunLight.color.setHex(0xffffff);
-      if (this.stars) {
-        this.game.scene.remove(this.stars);
-        this.stars = null;
-      }
+    // Wind in winter
+    if (season === 'winter' && this.game.score >= 1300) {
+      this.game.soundManager.startWind();
     }
 
-    // NPC snowmobiles during night
-    if (this.isNight && this.npcSnowmobiles.length === 0) {
+    // NPC snowmobiles during winter night
+    if (this.isNight && season === 'winter' && this.npcSnowmobiles.length === 0) {
       this.spawnNpcSnowmobiles();
     }
-    if (!this.isNight && this.npcSnowmobiles.length > 0) {
+    if ((!this.isNight || season !== 'winter') && this.npcSnowmobiles.length > 0) {
       this.removeNpcSnowmobiles();
     }
     for (const npc of this.npcSnowmobiles) {
@@ -117,9 +143,15 @@ export class EnvironmentManager {
       const glow = this.game.player.group.getObjectByName('headlightGlow');
       if (glow) this.game.player.group.remove(glow);
     }
+
+    this.prevSeason = season;
+    this.prevTime = time;
   }
 
   updateBears(dt: number) {
+    // Bears only in winter/autumn
+    const season = this.game.seasonManager.season;
+    if (season === 'summer') return;
     if (this.game.score < 1700) return;
 
     if (this.nextBearScore === 0) {
@@ -240,6 +272,20 @@ export class EnvironmentManager {
     this.game.scene.add(this.stars);
   }
 
+  private createMoon(season: Season) {
+    const brightness = season === 'winter' ? 0.6 : 0.9;
+    const moonMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
+    const moonGeo = new THREE.SphereGeometry(season === 'summer' ? 6 : 4, 16, 12);
+    this.moon = new THREE.Mesh(moonGeo, moonMat);
+    this.moon.position.set(40, 60, 80);
+    this.game.scene.add(this.moon);
+
+    // Moon glow light
+    const moonLight = new THREE.PointLight(0xccccff, brightness, 200);
+    moonLight.position.set(0, 0, 0);
+    this.moon.add(moonLight);
+  }
+
   private spawnNpcSnowmobiles() {
     for (const side of [-1, 1]) {
       const npc = new THREE.Group();
@@ -310,6 +356,8 @@ export class EnvironmentManager {
   resetEnvironment() {
     this.isNight = false;
     this.isBlizzard = false;
+    this.prevSeason = 'winter';
+    this.prevTime = 'morning';
     this.removeNpcSnowmobiles();
     this.game.scene.background = new THREE.Color(0x87ceeb);
     this.game.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
@@ -319,6 +367,10 @@ export class EnvironmentManager {
     if (this.stars) {
       this.game.scene.remove(this.stars);
       this.stars = null;
+    }
+    if (this.moon) {
+      this.game.scene.remove(this.moon);
+      this.moon = null;
     }
     if (this.headlight) {
       this.game.player.group.remove(this.headlight.target);

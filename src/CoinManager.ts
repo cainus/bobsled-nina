@@ -22,6 +22,10 @@ export class CoinManager {
   }
 
   private createSnowflake(): THREE.Group {
+    if (this.game.seasonManager.season === 'autumn') {
+      return this.createMapleLeaf();
+    }
+
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({
       color: 0xeeffff,
@@ -58,6 +62,80 @@ export class CoinManager {
     return group;
   }
 
+  private createMapleLeaf(): THREE.Group {
+    const group = new THREE.Group();
+    const leafColors = [0xcc2200, 0xff4400, 0xff6600, 0xee3300];
+    const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.1,
+      roughness: 0.4,
+      emissive: color,
+      emissiveIntensity: 0.3,
+      side: THREE.DoubleSide,
+    });
+
+    // Canadian maple leaf from SVG path (based on Font Awesome canadian-maple-leaf)
+    // Original is 512x512, centered at (256, 256). Scale and center it.
+    const shape = new THREE.Shape();
+    const sc = 0.0016; // scale to ~0.8 units wide
+    const cx = 256, cy = 256; // center offset
+    // Trace the outline points (simplified from SVG)
+    const pts: [number, number][] = [
+      [256, 0],     // top point
+      [214, 79],    // left of top
+      [173, 74],    // notch
+      [128, 167],   // left upper lobe tip
+      [158, 177],   // notch back
+      [110, 240],   // left middle lobe
+      [143, 244],   // notch back
+      [25, 259],    // left lower lobe tip
+      [40, 272],    // notch
+      [56, 290],    // lower left
+      [20, 330],    // bottom-left lobe
+      [95, 313],    // notch back
+      [96, 340],    // bottom indent
+      [123, 409],   // left base
+      [241, 389],   // left of stem base
+      [247, 512],   // stem bottom-left
+      [256, 512],   // stem bottom-center
+      [265, 512],   // stem bottom-right
+      [271, 389],   // right of stem base
+      [389, 409],   // right base
+      [416, 340],   // bottom indent
+      [417, 313],   // notch back
+      [492, 330],   // bottom-right lobe
+      [456, 290],   // lower right
+      [472, 272],   // notch
+      [487, 259],   // right lower lobe tip
+      [369, 244],   // notch back
+      [402, 240],   // right middle lobe
+      [354, 177],   // notch back
+      [384, 167],   // right upper lobe tip
+      [339, 74],    // notch
+      [298, 79],    // right of top
+    ];
+    // Convert to centered, scaled coordinates (flip Y so top is up)
+    shape.moveTo((pts[0][0] - cx) * sc, (cy - pts[0][1]) * sc);
+    for (let i = 1; i < pts.length; i++) {
+      shape.lineTo((pts[i][0] - cx) * sc, (cy - pts[i][1]) * sc);
+    }
+    shape.closePath();
+
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.03, bevelEnabled: false });
+    const leaf = new THREE.Mesh(geo, mat);
+    leaf.castShadow = true;
+    group.add(leaf);
+
+    // Stem
+    const stemMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a });
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, 0.15, 6), stemMat);
+    stem.position.set(0, -0.5, 0.015);
+    group.add(stem);
+
+    return group;
+  }
+
   update(dt: number) {
     this.spawnTimer += dt;
     if (this.spawnTimer >= this.spawnInterval) {
@@ -73,7 +151,9 @@ export class CoinManager {
       coin.mesh.position.z -= moveAmount;
       // Spin and float
       coin.mesh.rotation.y += dt * 2;
-      coin.mesh.rotation.z += dt * 0.5;
+      if (this.game.seasonManager.season !== 'autumn') {
+        coin.mesh.rotation.z += dt * 0.5;
+      }
       coin.mesh.position.y = coin.baseY + Math.sin(time + coin.mesh.position.z * 0.5) * 0.15;
 
       if (coin.mesh.position.z < -15) {
