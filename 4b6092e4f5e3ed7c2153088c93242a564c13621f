@@ -1,0 +1,29 @@
+src/Game.ts
+  ed24b2cc852edc7c 357,364
+src/SoundManager.ts
+  ed24b2cc852edc7c 28-39
+src/ObstacleManager.ts
+  ed24b2cc852edc7c 11,126
+src/CollisionManager.ts
+  ed24b2cc852edc7c 22-31,68-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "4b6092e4f5e3ed7c2153088c93242a564c13621f",
+  "prompts": {
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 38,
+      "total_deletions": 0,
+      "accepted_lines": 38,
+      "overriden_lines": 0
+    }
+  }
+}
