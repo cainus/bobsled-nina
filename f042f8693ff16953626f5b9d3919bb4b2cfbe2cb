@@ -1,0 +1,29 @@
+src/ParticleManager.ts
+  ed7d2a488e7fed10 23-24,42-49,54-55,194-236,247
+src/TrackManager.ts
+  ed7d2a488e7fed10 32,36,251,260,275,287
+src/Player.ts
+  ed7d2a488e7fed10 573-581,661-667
+src/Game.ts
+  ed7d2a488e7fed10 57-59,449,459,469,614-618,1399-1451,1454-1460
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "f042f8693ff16953626f5b9d3919bb4b2cfbe2cb",
+  "prompts": {
+    "ed7d2a488e7fed10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9027e775-1b63-49d0-99f4-0ec4bec4a3a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 198,
+      "total_deletions": 62,
+      "accepted_lines": 150,
+      "overriden_lines": 0
+    }
+  }
+}
