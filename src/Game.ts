@@ -34,12 +34,15 @@ export class Game {
   // Lane positions: -1 = left, 0 = center, 1 = right
   readonly laneWidth = 3;
 
-  // Bobsled power-up
+  // Power-ups
   private bobsledShield = false;
   private bobsledHitsLeft = 0;
   private preShieldVehicle: 'skis' | 'snowboard' | 'rainbowSkis' = 'skis';
-  private powerups: { mesh: THREE.Group; active: boolean }[] = [];
+  private powerups: { mesh: THREE.Group; active: boolean; type: 'bobsled' | 'metal' }[] = [];
   private powerupSpawnTimer = 0;
+
+  // Heavy metal mode
+  private metalMode = false;
 
   // Environment transitions
   private isNight = false;
@@ -378,7 +381,10 @@ export class Game {
     this.powerupSpawnTimer = 0;
     this.bobsledShield = false;
     this.bobsledHitsLeft = 0;
+    this.metalMode = false;
+    this.soundManager.stopThrash();
     document.getElementById('shield-display')!.style.display = 'none';
+    document.getElementById('metal-display')!.style.display = 'none';
   }
 
   private setupResizeHandler() {
@@ -440,7 +446,8 @@ export class Game {
 
     // Increase speed over time — steepness gives a speed boost
     const steepnessBoost = this.steepness * 12;
-    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost);
+    const metalBoost = this.metalMode ? this.maxSpeed * 0.5 : 0;
+    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost + metalBoost);
 
     // Process input
     const input = this.inputManager.consume();
@@ -463,8 +470,8 @@ export class Game {
     this.soundManager.setSlidingMuted(this.player.isJumping);
     this.soundManager.updateSlidingPitch(this.speed);
 
-    // Update score (distance-based)
-    this.score += Math.round(this.speed * dt);
+    // Update score (distance-based, 2x in metal mode)
+    this.score += Math.round(this.speed * dt * (this.metalMode ? 2 : 1));
     document.getElementById('score')!.textContent = this.score.toString();
     document.getElementById('coins-display')!.textContent = `Snowflakes: ${this.coins}`;
 
@@ -511,6 +518,13 @@ export class Game {
       // Shrink collision box slightly for fairness
       obstacleBox.expandByScalar(-0.15);
       if (playerBox.intersectsBox(obstacleBox)) {
+        if (this.metalMode) {
+          // Metal mode ends on hit — destroy obstacle but survive
+          obstacle.active = false;
+          this.scene.remove(obstacle.mesh);
+          this.deactivateMetalMode();
+          continue;
+        }
         if (this.bobsledShield) {
           // Destroy obstacle and use a shield hit
           obstacle.active = false;
@@ -556,13 +570,14 @@ export class Game {
   }
 
   private updatePowerups(dt: number) {
-    // Spawn bobsled power-ups periodically
+    // Spawn power-ups periodically
     this.powerupSpawnTimer += dt;
     if (this.powerupSpawnTimer > 12 + Math.random() * 15) {
       this.powerupSpawnTimer = 0;
-      if (!this.bobsledShield) {
-        this.spawnPowerup();
-      }
+      const type = Math.random() > 0.5 ? 'bobsled' : 'metal';
+      if (type === 'bobsled' && this.bobsledShield) return;
+      if (type === 'metal' && this.metalMode) return;
+      this.spawnPowerup(type);
     }
 
     const moveAmount = this.speed * dt;
@@ -579,7 +594,11 @@ export class Game {
       if (playerBox.intersectsBox(puBox)) {
         pu.active = false;
         this.scene.remove(pu.mesh);
-        this.activateShield();
+        if (pu.type === 'bobsled') {
+          this.activateShield();
+        } else {
+          this.activateMetalMode();
+        }
         this.powerups.splice(i, 1);
         continue;
       }
@@ -592,13 +611,13 @@ export class Game {
     }
   }
 
-  private spawnPowerup() {
+  private spawnPowerup(type: 'bobsled' | 'metal') {
     const lane = Math.floor(Math.random() * 3) - 1;
     const laneY = this.laneHeightMap.getHeight(lane, 100);
-    const mesh = this.createPowerupMesh();
+    const mesh = type === 'bobsled' ? this.createPowerupMesh() : this.createWalkmanMesh();
     mesh.position.set(lane * this.laneWidth, laneY + 0.8, 100);
     this.scene.add(mesh);
-    this.powerups.push({ mesh, active: true });
+    this.powerups.push({ mesh, active: true, type });
   }
 
   private createPowerupMesh(): THREE.Group {
@@ -675,6 +694,93 @@ export class Game {
       this.player.switchVehicle(this.preShieldVehicle);
     }
     document.getElementById('shield-display')!.style.display = 'none';
+  }
+
+  private createWalkmanMesh(): THREE.Group {
+    const group = new THREE.Group();
+    // Walkman body
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      emissive: 0x440066,
+      emissiveIntensity: 0.4,
+      metalness: 0.6,
+      roughness: 0.3,
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.25), bodyMat);
+    body.position.y = 0.5;
+    body.castShadow = true;
+    group.add(body);
+
+    // Screen/display
+    const screenMat = new THREE.MeshStandardMaterial({
+      color: 0x88ff88,
+      emissive: 0x44ff44,
+      emissiveIntensity: 0.6,
+    });
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.3, 0.02), screenMat);
+    screen.position.set(0, 0.7, 0.14);
+    group.add(screen);
+
+    // Buttons
+    const btnMat = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
+    for (const x of [-0.15, 0, 0.15]) {
+      const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 8), btnMat);
+      btn.rotation.x = Math.PI / 2;
+      btn.position.set(x, 0.35, 0.14);
+      group.add(btn);
+    }
+
+    // Headphone cord
+    const cordMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 6), cordMat);
+    cord.position.set(0, 1.3, 0);
+    group.add(cord);
+
+    // Headphone pads
+    for (const side of [-0.25, 0.25]) {
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), bodyMat);
+      pad.position.set(side, 1.6, 0);
+      group.add(pad);
+    }
+    // Headband
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.02, 6, 12, Math.PI), cordMat);
+    band.position.set(0, 1.6, 0);
+    group.add(band);
+
+    // Floating lightning bolt above
+    const boltMat = new THREE.MeshStandardMaterial({
+      color: 0xffdd00,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.8,
+    });
+    const bolt = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), boltMat);
+    bolt.position.y = 2.2;
+    group.add(bolt);
+
+    group.scale.setScalar(0.7);
+    return group;
+  }
+
+  private activateMetalMode() {
+    this.metalMode = true;
+    this.soundManager.startThrash();
+    this.player.setMetalMode(true);
+    const el = document.getElementById('metal-display')!;
+    el.style.display = 'block';
+  }
+
+  private deactivateMetalMode() {
+    this.metalMode = false;
+    this.soundManager.stopThrash();
+    this.player.setMetalMode(false);
+    document.getElementById('metal-display')!.style.display = 'none';
+    // Show end notification
+    const el = document.createElement('div');
+    el.textContent = 'METAL OVER!';
+    el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff4444;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
+    document.getElementById('ui-overlay')!.appendChild(el);
+    requestAnimationFrame(() => { el.style.top = '35%'; el.style.opacity = '0'; });
+    setTimeout(() => el.remove(), 600);
   }
 
   private showShieldHit() {

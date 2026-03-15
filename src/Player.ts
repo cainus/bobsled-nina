@@ -33,6 +33,9 @@ export class Player {
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
   currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' = 'skis';
+  private isMetalMode = false;
+  private readonly outfitColor = 0x2196f3;
+  private readonly metalColor = 0x111111;
 
   constructor(game: Game) {
     this.game = game;
@@ -401,7 +404,25 @@ export class Player {
     this.group.add(this.character);
   }
 
+  setMetalMode(active: boolean) {
+    this.isMetalMode = active;
+    const targetColor = new THREE.Color(active ? this.metalColor : this.outfitColor);
+    const pantsColor = new THREE.Color(active ? 0x000000 : 0x1565c0);
+    this.character.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+        const hex = child.material.color.getHex();
+        if (hex === this.outfitColor || hex === this.metalColor) {
+          child.material.color.copy(targetColor);
+        }
+        if (hex === 0x1565c0 || hex === 0x000000) {
+          child.material.color.copy(pantsColor);
+        }
+      }
+    });
+  }
+
   reset() {
+    this.isMetalMode = false;
     this.currentLane = 0;
     this.targetLane = 0;
     this.isJumping = false;

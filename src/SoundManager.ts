@@ -240,6 +240,109 @@ export class SoundManager {
     this.windActive = true;
   }
 
+  // Thrash metal music
+  private thrashSource: AudioBufferSourceNode | null = null;
+  private thrashGain: GainNode | null = null;
+  private thrashPlaying = false;
+
+  private renderThrashBuffer(): AudioBuffer {
+    const ctx = this.ensureContext();
+    const sampleRate = ctx.sampleRate;
+    const bpm = 200;
+    const noteLen = 60 / bpm;
+    // E2-based thrash riff with palm mutes and power chords
+    const riffNotes = [82.4, 82.4, 98, 82.4, 110, 82.4, 130.8, 123.5, 110, 98, 82.4, 82.4, 73.4, 82.4, 98, 110];
+    const riffDuration = riffNotes.length * noteLen;
+    const totalSamples = Math.ceil(riffDuration * sampleRate);
+    const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let noteIdx = 0; noteIdx < riffNotes.length; noteIdx++) {
+      const freq = riffNotes[noteIdx];
+      const fifth = freq * 1.5;
+      const startSample = Math.floor(noteIdx * noteLen * sampleRate);
+      const noteSamples = Math.floor(noteLen * sampleRate);
+      const isPalmMute = noteIdx % 3 === 0;
+      const noteDur = isPalmMute ? noteSamples * 0.5 : noteSamples * 0.9;
+
+      for (let s = 0; s < noteSamples && startSample + s < totalSamples; s++) {
+        const t = s / sampleRate;
+        // Envelope — fast attack, variable sustain
+        let env = 1;
+        if (s < 80) env = s / 80;
+        if (s > noteDur) env = Math.max(0, 1 - (s - noteDur) / (noteSamples * 0.1));
+
+        // Guitar: square-ish wave + fifth, distorted
+        let guitar = Math.sin(2 * Math.PI * freq * t) + 0.5 * Math.sin(2 * Math.PI * freq * t * 2);
+        guitar += 0.6 * Math.sin(2 * Math.PI * fifth * t);
+        // Hard clip distortion
+        guitar = Math.tanh(guitar * 3) * 0.35;
+
+        // Kick drum every other note
+        let kick = 0;
+        if (s < sampleRate * 0.04) {
+          const kickT = s / sampleRate;
+          kick = Math.sin(2 * Math.PI * (150 - kickT * 2000) * kickT) * 0.5 * (1 - kickT * 25);
+        }
+
+        // Snare on off-beats
+        let snare = 0;
+        const snareOffset = Math.floor(noteSamples / 2);
+        const snareS = s - snareOffset;
+        if (noteIdx % 2 === 1 && snareS > 0 && snareS < sampleRate * 0.04) {
+          snare = (Math.random() * 2 - 1) * 0.25 * (1 - snareS / (sampleRate * 0.04));
+        }
+
+        // Hi-hat — constant 16th note chatter
+        let hihat = 0;
+        const hhInterval = Math.floor(noteSamples / 2);
+        const hhS = s % hhInterval;
+        if (hhS < sampleRate * 0.015) {
+          hihat = (Math.random() * 2 - 1) * 0.08 * (1 - hhS / (sampleRate * 0.015));
+        }
+
+        data[startSample + s] = (guitar * env + kick + snare + hihat);
+      }
+    }
+
+    return buffer;
+  }
+
+  startThrash() {
+    if (this.thrashPlaying) return;
+    this.thrashPlaying = true;
+    const ctx = this.ensureContext();
+
+    const buffer = this.renderThrashBuffer();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.5;
+
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+
+    this.thrashSource = source;
+    this.thrashGain = gain;
+  }
+
+  stopThrash() {
+    if (!this.thrashPlaying) return;
+    this.thrashPlaying = false;
+    if (this.thrashSource) {
+      this.thrashSource.stop();
+      this.thrashSource.disconnect();
+      this.thrashSource = null;
+    }
+    if (this.thrashGain) {
+      this.thrashGain.disconnect();
+      this.thrashGain = null;
+    }
+  }
+
   setWindVolume(vol: number) {
     if (this.windGain) {
       this.windGain.gain.linearRampToValueAtTime(vol, this.ctx!.currentTime + 0.5);
@@ -248,6 +351,7 @@ export class SoundManager {
 
   reset() {
     this.stopSliding();
+    this.stopThrash();
     if (this.windSource) {
       this.windSource.stop();
       this.windSource.disconnect();
