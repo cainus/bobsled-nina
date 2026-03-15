@@ -20,6 +20,8 @@ export class ParticleManager {
   private snowGeo = new THREE.SphereGeometry(0.08, 4, 4);
   private snowflakeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
   private readonly SNOWFLAKE_COUNT = 300;
+  private blizzardFlakes: THREE.Mesh[] = [];
+  private blizzardActive = false;
 
   private smallGeo = new THREE.SphereGeometry(0.06, 4, 4);
   private snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -37,9 +39,20 @@ export class ParticleManager {
       this.startSnowfall();
     }
 
+    // Blizzard extra snowflakes
+    const isBlizzard = this.game.score >= 6000 && this.game.score < 7000;
+    if (isBlizzard && !this.blizzardActive) {
+      this.startBlizzardFlakes();
+    } else if (!isBlizzard && this.blizzardActive) {
+      this.stopBlizzardFlakes();
+    }
+
     // Update snowflakes
     if (this.snowActive) {
       this.updateSnowfall(dt);
+    }
+    if (this.blizzardActive) {
+      this.updateBlizzardFlakes(dt);
     }
 
     // Spawn snow spray behind sled
@@ -178,6 +191,49 @@ export class ParticleManager {
     }
   }
 
+  private startBlizzardFlakes() {
+    this.blizzardActive = true;
+    const playerZ = this.game.player.group.position.z;
+    // 500 extra flakes, many close to camera
+    for (let i = 0; i < 500; i++) {
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+      const size = 0.05 + Math.random() * 0.12;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 4, 4), mat);
+      mesh.position.set(
+        (Math.random() - 0.5) * 30,
+        Math.random() * 15,
+        playerZ - 10 + Math.random() * 60  // many close to/behind camera
+      );
+      this.game.scene.add(mesh);
+      this.blizzardFlakes.push(mesh);
+    }
+  }
+
+  private updateBlizzardFlakes(dt: number) {
+    const playerZ = this.game.player.group.position.z;
+    for (const flake of this.blizzardFlakes) {
+      flake.position.y -= (5 + Math.random() * 3) * dt;
+      flake.position.x += (12 + Math.sin(Date.now() * 0.003 + flake.position.y * 2) * 6) * dt;
+      flake.position.z -= (3 + Math.random() * 2) * dt;
+
+      if (flake.position.y < -1 || flake.position.z < playerZ - 15 || Math.abs(flake.position.x) > 25) {
+        flake.position.set(
+          -15 + Math.random() * 10,
+          2 + Math.random() * 12,
+          playerZ - 5 + Math.random() * 40
+        );
+      }
+    }
+  }
+
+  private stopBlizzardFlakes() {
+    this.blizzardActive = false;
+    for (const f of this.blizzardFlakes) {
+      this.game.scene.remove(f);
+    }
+    this.blizzardFlakes = [];
+  }
+
   reset() {
     for (const p of this.particles) {
       this.game.scene.remove(p.mesh);
@@ -188,5 +244,6 @@ export class ParticleManager {
     }
     this.snowflakes = [];
     this.snowActive = false;
+    this.stopBlizzardFlakes();
   }
 }

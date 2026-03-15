@@ -570,6 +570,15 @@ export class Player {
     this.group.add(this.character);
   }
 
+  ejectCrash(): { character: THREE.Group; vehicle: THREE.Group; startPos: THREE.Vector3 } {
+    const startPos = this.group.position.clone();
+    // Remove character from group but keep it in scene
+    this.group.remove(this.character);
+    // Spread limbs — scale arms/legs wider
+    this.character.rotation.x = -0.3; // lean forward
+    return { character: this.character, vehicle: this.vehicle, startPos };
+  }
+
   bigLaunch() {
     this.isJumping = true;
     this.landSoundPlayed = false;
@@ -649,10 +658,13 @@ export class Player {
     this.jumpVelocity = 0;
     this.groundY = 0.5;
     this.group.position.set(0, this.groundY, 0);
-    this.character.scale.copy(this.normalCharacterScale);
-    if (this.currentVehicle !== 'skis') {
-      this.switchVehicle('skis');
-    }
+    this.group.rotation.set(0, 0, 0);
+    // Rebuild vehicle and character fresh
+    if (this.vehicle) this.group.remove(this.vehicle);
+    if (this.character) this.group.remove(this.character);
+    this.currentVehicle = 'skis';
+    this.buildVehicle('skis');
+    this.buildCharacter();
   }
 
   handleInput(input: PlayerInput) {

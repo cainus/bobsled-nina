@@ -29,11 +29,11 @@ export class TrackManager {
     this.wallMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
     this.snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
     this.rampMat = new THREE.MeshStandardMaterial({
-      color: 0xaaddee,
+      color: 0xddeeFF,
       metalness: 0.2,
       roughness: 0.3,
     });
-    this.laneColors = [0xe8eff4, 0xf0f5f8, 0xe8eff4];
+    this.laneColors = [0xf2f7fb, 0xf8fbfd, 0xf2f7fb];
     this.dividerMat = new THREE.MeshStandardMaterial({ color: 0x99bbcc });
 
     this.spawnInitialChunks();
@@ -248,7 +248,7 @@ export class TrackManager {
     const angle = Math.atan2(heightDiff, length);
 
     const rampGeo = new THREE.BoxGeometry(width - 0.15, 0.25, slopeLen);
-    const rampMat = new THREE.MeshStandardMaterial({ color: 0x55bbdd });
+    const rampMat = new THREE.MeshStandardMaterial({ color: 0xbbeeFF });
     const ramp = new THREE.Mesh(rampGeo, rampMat);
     ramp.position.set(laneX, (fromY + toY) / 2, localZ + length / 2);
     ramp.rotation.x = -angle;
@@ -257,7 +257,7 @@ export class TrackManager {
     group.add(ramp);
 
     // Side walls along the ramp
-    const sideMat = new THREE.MeshStandardMaterial({ color: 0x4499bb });
+    const sideMat = new THREE.MeshStandardMaterial({ color: 0xaaddee });
     for (const side of [-1, 1]) {
       const sideGeo = new THREE.BoxGeometry(0.2, 0.5, slopeLen);
       const sideWall = new THREE.Mesh(sideGeo, sideMat);
@@ -272,7 +272,7 @@ export class TrackManager {
 
   private addLaneSupportWall(chunk: THREE.Group, laneX: number, height: number, localZ: number, length: number) {
     const laneW = this.game.laneWidth;
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4499bb });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaddee });
     // Side edges — colored walls showing the elevation
     const sideGeo = new THREE.BoxGeometry(0.2, height, length);
     for (const side of [-1, 1]) {
@@ -284,7 +284,7 @@ export class TrackManager {
     }
     // Front face — visible wall facing the player
     const faceGeo = new THREE.BoxGeometry(laneW - 0.15, height, 0.2);
-    const faceMat = new THREE.MeshStandardMaterial({ color: 0x3388aa });
+    const faceMat = new THREE.MeshStandardMaterial({ color: 0x99ccdd });
     const face = new THREE.Mesh(faceGeo, faceMat);
     face.position.set(laneX, height / 2, localZ + 0.1);
     face.receiveShadow = true;

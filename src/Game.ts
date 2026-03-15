@@ -54,6 +54,9 @@ export class Game {
   // Heavy metal mode
   metalMode = false;
 
+  // Crash animation
+  private crashedCharacter: THREE.Group | null = null;
+
   // Big jump
   private nextBigJumpScore = 2000;
   private bigRamp: THREE.Group | null = null;
@@ -443,7 +446,7 @@ export class Game {
     // Main ramp surface — spans all lanes
     const slopeLen = Math.sqrt(rampLength * rampLength + rampHeight * rampHeight);
     const angle = Math.atan2(rampHeight, rampLength);
-    const rampMat = new THREE.MeshStandardMaterial({ color: 0x55bbdd, metalness: 0.2, roughness: 0.3 });
+    const rampMat = new THREE.MeshStandardMaterial({ color: 0xbbeeFF, metalness: 0.2, roughness: 0.3 });
     const rampGeo = new THREE.BoxGeometry(trackWidth - 0.5, 0.3, slopeLen);
     const ramp = new THREE.Mesh(rampGeo, rampMat);
     ramp.position.set(0, rampHeight / 2, rampLength / 2);
@@ -453,7 +456,7 @@ export class Game {
     group.add(ramp);
 
     // Side walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4499bb });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaaddee });
     for (const side of [-1, 1]) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, slopeLen), wallMat);
       wall.position.set(side * (trackWidth / 2 - 0.1), rampHeight / 2, rampLength / 2);
@@ -463,7 +466,7 @@ export class Game {
     }
 
     // Support structure underneath
-    const supportMat = new THREE.MeshStandardMaterial({ color: 0x3388aa });
+    const supportMat = new THREE.MeshStandardMaterial({ color: 0x99ccdd });
     for (let i = 0; i < 3; i++) {
       const t = (i + 1) / 4;
       const supportH = rampHeight * t;
@@ -608,6 +611,11 @@ export class Game {
   }
 
   restart() {
+    // Clean up crash animation
+    if (this.crashedCharacter) {
+      this.scene.remove(this.crashedCharacter);
+      this.crashedCharacter = null;
+    }
     // Clear old objects
     this.laneHeightMap.reset();
     this.obstacleManager.reset();
@@ -1388,8 +1396,67 @@ export class Game {
     this.gameOver = true;
     this.running = false;
     this.soundManager.reset();
-    document.getElementById('game-over-screen')!.style.display = 'flex';
-    document.getElementById('final-score')!.textContent = this.score.toString();
-    document.getElementById('final-coins')!.textContent = `Snowflakes: ${this.coins}`;
+
+    // Eject crash animation
+    const { character, startPos } = this.player.ejectCrash();
+    const crashSpeed = this.speed;
+    character.position.copy(startPos);
+    character.position.y = startPos.y + 0.15;
+    this.scene.add(character);
+    this.crashedCharacter = character;
+
+    // Vehicle stays behind and scrolls back
+    const vehicleWorldPos = this.player.group.position.clone();
+
+    const vel = { x: (Math.random() - 0.5) * 3, y: 6, z: crashSpeed * 0.6 };
+    const startTime = Date.now();
+    let landed = false;
+    let slideSpeed = 0;
+
+    const animateCrash = () => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const dt = 0.016;
+
+      // Move all track chunks back so scene scrolls
+      this.trackManager.update(dt);
+
+      if (!landed) {
+        // Character shoots forward and up
+        character.position.x += vel.x * dt;
+        character.position.y += vel.y * dt;
+        character.position.z += vel.z * dt;
+        vel.y -= 25 * dt;
+
+        // Fast forward tumble
+        character.rotation.x += 8 * dt;
+        const spread = Math.min(elapsed * 5, 1);
+        character.scale.set(1 + spread * 0.5, 1, 1);
+
+        if (character.position.y <= 0.15 && vel.y < 0) {
+          landed = true;
+          character.position.y = 0.15;
+          character.rotation.x = Math.PI / 2;
+          character.scale.set(1.5, 1, 1);
+          slideSpeed = crashSpeed * 0.3;
+          this.soundManager.playLand();
+        }
+      } else {
+        // Slide along ground, decelerating
+        character.position.z += slideSpeed * dt;
+        slideSpeed *= 0.92;
+      }
+
+      if (elapsed < 1.8) {
+        requestAnimationFrame(animateCrash);
+      } else {
+        document.getElementById('game-over-screen')!.style.display = 'flex';
+        document.getElementById('final-score')!.textContent = this.score.toString();
+        document.getElementById('final-coins')!.textContent = `Snowflakes: ${this.coins}`;
+      }
+
+      this.renderer.render(this.scene, this.camera);
+    };
+
+    animateCrash();
   }
 }
