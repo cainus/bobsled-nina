@@ -1,0 +1,33 @@
+src/TrackManager.ts
+  ed7d2a488e7fed10 313-314,316-321,324-357,359-369
+src/ParticleManager.ts
+  ed7d2a488e7fed10 27-28,52-60,97-120
+src/Game.ts
+  ed7d2a488e7fed10 40,42,44-47,49-52,57-58,352-365,411,413-425,427,491-494,516-518,520-524,528-529,569-576,579,586,595-609,648-655,675,677-680,694,697-706,762,768-774,778,784-787,884-1117
+src/SoundManager.ts
+  ed7d2a488e7fed10 251,253-254,320,347-412,422
+src/ObstacleManager.ts
+  ed7d2a488e7fed10 9,57-59,109,177,179-183,189-225,227-231,474-476,478,502-503,508-518
+src/Player.ts
+  ed7d2a488e7fed10 20-22,425-460,465-467,509-510,513,517-521,560-569,574-575
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "31236ee27e566c17191163360ba8c732f23b8922",
+  "prompts": {
+    "ed7d2a488e7fed10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9027e775-1b63-49d0-99f4-0ec4bec4a3a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 663,
+      "total_deletions": 90,
+      "accepted_lines": 644,
+      "overriden_lines": 0
+    }
+  }
+}
