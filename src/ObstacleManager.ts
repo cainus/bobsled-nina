@@ -121,7 +121,7 @@ export class ObstacleManager {
 
     switch (type) {
       case 'rock': {
-        const variant = Math.floor(Math.random() * 4);
+        const variant = Math.floor(Math.random() * 3);
         this.buildRockVariant(group, variant);
         break;
       }
@@ -264,11 +264,13 @@ export class ObstacleManager {
           snowPatch.position.set(0.1, 0.45, 0);
           group.add(snowPatch);
         } else if (variant === 1) {
-          // Fallen log — single horizontal trunk
+          // Fallen log — single horizontal trunk, slightly askew
           const barkMat = new THREE.MeshStandardMaterial({ color: 0x6d4c2e, roughness: 0.9 });
           const logGeo = new THREE.CylinderGeometry(0.25, 0.3, 2.4, 8);
           const log = new THREE.Mesh(logGeo, barkMat);
+          const logAngle = (Math.random() - 0.5) * 0.6;
           log.rotation.z = Math.PI / 2;
+          log.rotation.y = logAngle;
           log.position.y = 0.3;
           log.castShadow = true;
           group.add(log);
@@ -286,7 +288,8 @@ export class ObstacleManager {
           snow.position.set(0, 0.55, 0);
           group.add(snow);
         } else {
-          // Log pile — two logs stacked with one on top
+          // Log pile — two logs stacked with one on top, askew
+          const pileAngle = (Math.random() - 0.5) * 0.5;
           const barkMat = new THREE.MeshStandardMaterial({ color: 0x5a3d1e, roughness: 0.95 });
           const barkMat2 = new THREE.MeshStandardMaterial({ color: 0x7a5533, roughness: 0.85 });
           const endMat = new THREE.MeshStandardMaterial({ color: 0xc4a46c, roughness: 0.7 });
@@ -322,6 +325,8 @@ export class ObstacleManager {
             new THREE.MeshStandardMaterial({ color: 0xfafafa }));
           snow.position.set(0, 0.83, 0);
           group.add(snow);
+          // Rotate pile askew
+          group.rotation.y = pileAngle;
         }
         break;
       }
@@ -485,23 +490,25 @@ export class ObstacleManager {
       group.add(foliage);
     }
 
-    // Overhanging branch — extends across 1-2 lanes
+    // Overhanging branch — extends across 1-2 lanes, slightly askew
     // Branch sits at y ~1.8 so standing players hit it, ducking players pass under
+    const branchAngle = (Math.random() - 0.5) * 0.4;
     const branchLength = numLanes * lw + 1;
     const branchX = trunkX + (-side * branchLength / 2);
     const branchGeo = new THREE.CylinderGeometry(0.15, 0.2, branchLength, 6);
     const branch = new THREE.Mesh(branchGeo, trunkMat);
-    branch.rotation.z = Math.PI / 2; // horizontal
+    branch.rotation.z = Math.PI / 2;
+    branch.rotation.y = branchAngle;
     branch.position.set(branchX, 1.8, 0);
     branch.castShadow = true;
     group.add(branch);
 
-    // Collision box — only the branch part (not trunk/foliage)
-    // Use an invisible box matching branch dimensions for collision
-    const colliderGeo = new THREE.BoxGeometry(branchLength, 0.5, 0.8);
+    // Collision box — only the branch part (not trunk/foliage), matches askew angle
+    const colliderGeo = new THREE.BoxGeometry(branchLength, 0.5, 1.2);
     const colliderMesh = new THREE.Mesh(colliderGeo);
     colliderMesh.visible = false;
     colliderMesh.position.set(branchX, 1.8, 0);
+    colliderMesh.rotation.y = branchAngle;
     group.add(colliderMesh);
 
     // Pine needle clumps and snow on the branch

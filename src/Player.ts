@@ -575,6 +575,12 @@ export class Player {
     this.landSoundPlayed = false;
     this.jumpVelocity = this.jumpForce * 2.5;
     this.game.soundManager.playGrunt();
+    // 20% chance of front flip
+    if (Math.random() < 0.2) {
+      this.backflipping = true;
+      this.spinning = false;
+      this.spinAngle = 0;
+    }
   }
 
   setMetalMode(active: boolean) {
