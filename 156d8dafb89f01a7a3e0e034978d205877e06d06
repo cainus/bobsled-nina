@@ -1,0 +1,29 @@
+src/Game.ts
+  ed7d2a488e7fed10 37,41,44-45,384-385,387,449-450,473-474,521-527,577-580,597-601,614,617,620,699-785
+index.html
+  ed7d2a488e7fed10 24-36,112
+src/SoundManager.ts
+  ed7d2a488e7fed10 243-345,354
+src/Player.ts
+  ed7d2a488e7fed10 36-38,407-423,425
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "156d8dafb89f01a7a3e0e034978d205877e06d06",
+  "prompts": {
+    "ed7d2a488e7fed10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9027e775-1b63-49d0-99f4-0ec4bec4a3a1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 370,
+      "total_deletions": 125,
+      "accepted_lines": 257,
+      "overriden_lines": 0
+    }
+  }
+}
