@@ -92,11 +92,11 @@ export class PowerupManager {
 
   updateBigRamp(dt: number) {
     if (this.game.score >= this.nextBigJumpScore && !this.bigRampActive) {
-      this.nextBigJumpScore = this.game.score + 1800 + Math.floor(Math.random() * 400);
       const isSpring = this.game.seasonManager.season === 'spring';
-      if (isSpring && this.springRampCount < 2) {
+      const interval = isSpring ? 300 + Math.floor(Math.random() * 200) : 1800 + Math.floor(Math.random() * 400);
+      this.nextBigJumpScore = this.game.score + interval;
+      if (isSpring) {
         this.spawnWaterfall();
-        this.springRampCount++;
       } else {
         this.spawnBigRamp();
       }

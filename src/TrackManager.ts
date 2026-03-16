@@ -137,7 +137,7 @@ export class TrackManager {
           endY: sY,
         });
       } else {
-        const rampStart = CHUNK_LENGTH * 0.3;
+        const rampStart = season === 'spring' ? CHUNK_LENGTH * 0.1 : CHUNK_LENGTH * 0.3;
         const rampEnd = rampStart + RAMP_LENGTH;
         const flatAfter = CHUNK_LENGTH - rampEnd;
 

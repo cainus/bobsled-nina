@@ -1254,6 +1254,11 @@ export class Player {
     if (input.jump && !this.isJumping && canJump) {
       this.isJumping = true;
       this.landSoundPlayed = false;
+      this.landingDipTimer = 0;
+      // Ensure position is at or above ground so jump isn't immediately cancelled
+      if (this.group.position.y < this.groundY) {
+        this.group.position.y = this.groundY;
+      }
       this.doubleJumpReady = input.doubleJump;
       const onRamp = this.game.laneHeightMap.isUpRamp(this.targetLane, 0);
       const rampBoost = onRamp ? 2 : 1;
