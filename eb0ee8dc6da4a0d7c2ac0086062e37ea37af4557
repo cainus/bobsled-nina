@@ -1,0 +1,42 @@
+src/PowerupManager.ts
+  ed24b2cc852edc7c 99,101,104-105
+index.html
+  b6dc655b37445972 6,116-117
+src/Player.ts
+  ed24b2cc852edc7c 47,74,575-577,579,583-584,586,589,591,593,643,645-647,649,652,654,656,1389-1399
+CLAUDE.md
+  b6dc655b37445972 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "eb0ee8dc6da4a0d7c2ac0086062e37ea37af4557",
+  "prompts": {
+    "b6dc655b37445972": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27f0b18f-9210-415c-9c77-a6893e6c81c9",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 51,
+      "total_deletions": 3,
+      "accepted_lines": 51,
+      "overriden_lines": 0
+    },
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 295,
+      "total_deletions": 373,
+      "accepted_lines": 44,
+      "overriden_lines": 0
+    }
+  }
+}
