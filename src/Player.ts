@@ -25,6 +25,8 @@ export class Player {
 
   // Ramp launch
   private landSoundPlayed = false;
+  private landingDipTimer = 0;
+  private landingDipDepth = 0;
   private wasOnUpRamp = false;
   private readonly rampLaunchForce = 8;
 
@@ -37,7 +39,7 @@ export class Player {
   private vehicle!: THREE.Group;
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
-  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak' = 'skis';
+  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak' | 'canoe' = 'skis';
   private isMetalMode = false;
   private readonly outfitColor = 0x2196f3;
   private readonly metalColor = 0x111111;
@@ -54,7 +56,7 @@ export class Player {
     game.scene.add(this.group);
   }
 
-  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak') {
+  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak' | 'canoe') {
     if (this.currentVehicle === type) return;
     this.currentVehicle = type;
     // Remove old vehicle and character, rebuild
@@ -64,7 +66,7 @@ export class Player {
     this.buildCharacter();
   }
 
-  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak') {
+  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak' | 'canoe') {
     this.vehicle = new THREE.Group();
 
     this.crankGroup = null;
@@ -96,6 +98,9 @@ export class Player {
         break;
       case 'jetski':
         this.buildJetskiParts();
+        break;
+      case 'canoe':
+        this.buildCanoeParts();
         break;
     }
 
@@ -647,6 +652,49 @@ export class Player {
     }
   }
 
+  private buildCanoeParts() {
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.5 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.7 });
+
+    // Hull
+    const hull = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 2.4, 6, 12), hullMat);
+    hull.position.set(0, -0.05, 0.1);
+    hull.rotation.x = Math.PI / 2;
+    hull.scale.set(1, 1, 0.5);
+    hull.castShadow = true;
+    this.vehicle.add(hull);
+
+    for (const z of [1.5, -1.2]) {
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.5, 8), hullMat);
+      tip.rotation.x = z > 0 ? -Math.PI / 2 : Math.PI / 2;
+      tip.position.set(0, 0, z);
+      this.vehicle.add(tip);
+    }
+
+    for (const side of [-0.33, 0.33]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 2.6), woodMat);
+      rail.position.set(side, 0.12, 0.1);
+      this.vehicle.add(rail);
+    }
+
+    const thwart = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.08), woodMat);
+    thwart.position.set(0, 0.1, 0.3);
+    this.vehicle.add(thwart);
+
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.3), woodMat);
+    seat.position.set(0, 0.05, -0.1);
+    this.vehicle.add(seat);
+
+    const paddleMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 6), paddleMat);
+    shaft.position.set(0.4, 0.3, 0.4);
+    shaft.rotation.z = 0.3;
+    this.vehicle.add(shaft);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.02, 0.35), paddleMat);
+    blade.position.set(0.6, -0.15, 0.4);
+    this.vehicle.add(blade);
+  }
+
   private buildJetskiParts() {
     const hullMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.3 }); // blue hull
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
@@ -989,7 +1037,7 @@ export class Player {
     this.leftLeg = null;
     this.rightLeg = null;
     const isBike = this.currentVehicle === 'mountainBike';
-    const isKayak = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak';
+    const isKayak = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
     const legSides: [number, THREE.Group | null][] = [];
 
     for (const side of [-0.15, 0.15]) {
@@ -1051,8 +1099,8 @@ export class Player {
       this.character.rotation.y = Math.PI / 2;
     }
 
-    // Kayak seated position: lower body, legs stretched forward
-    if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak') {
+    // Kayak/canoe seated position: lower body, legs stretched forward
+    if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe') {
       this.character.position.y = -0.25;
       this.character.rotation.x = -0.3; // lean back slightly
     }
@@ -1272,7 +1320,7 @@ export class Player {
       // Play land sound slightly early when about to hit ground
       const nextY = this.group.position.y + this.jumpVelocity * dt;
       if (this.jumpVelocity < 0 && !this.landSoundPlayed && nextY <= this.groundY + 0.3) {
-        if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak') {
+        if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe') {
           this.game.soundManager.playSplash();
         } else {
           this.game.soundManager.playLand();
@@ -1300,6 +1348,7 @@ export class Player {
       }
 
       if (this.group.position.y <= this.groundY) {
+        const fallSpeed = Math.abs(this.jumpVelocity);
         this.group.position.y = this.groundY;
         this.isJumping = false;
         this.jumpVelocity = 0;
@@ -1307,6 +1356,13 @@ export class Player {
         this.backflipping = false;
         this.group.rotation.x = 0;
         this.group.rotation.y = 0;
+        // Landing dip for water vehicles — scales with fall speed
+        const inWater = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
+        if (inWater) {
+          this.landingDipTimer = 0.8;
+          this.landingDipDepth = Math.min(fallSpeed * 0.04, 1.2);
+          this.landingDipDepth = Math.max(this.landingDipDepth, 0.15);
+        }
       }
     } else {
       // Snap/lerp to ground height (handles ramps and dropping from high to low lane)
@@ -1343,19 +1399,23 @@ export class Player {
       }
     }
 
-    // Bobbing motion while sliding
-    const inKayak = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak';
-    if (!this.isJumping && !this.isDucking) {
-      if (inKayak) {
-        // Deeper bobbing for kayak — dips slightly below surface
-        const bob = Math.sin(Date.now() * 0.005) * 0.12;
-        const tilt = Math.sin(Date.now() * 0.004 + 1) * 0.04;
-        this.group.position.y = this.groundY + bob;
-        this.group.rotation.z = tilt;
-      } else {
-        const bob = Math.sin(Date.now() * 0.008) * 0.03;
-        this.character.position.y = 0.15 + bob;
+    // Bobbing motion
+    const inWaterVehicle = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
+    if (inWaterVehicle && !this.isJumping) {
+      // Constant water bobbing
+      const bob = Math.sin(Date.now() * 0.005) * 0.1;
+      const tilt = Math.sin(Date.now() * 0.004 + 1) * 0.03;
+      // Landing dip
+      let dip = 0;
+      if (this.landingDipTimer > 0) {
+        this.landingDipTimer -= dt;
+        dip = -Math.sin(this.landingDipTimer / 0.8 * Math.PI) * this.landingDipDepth;
       }
+      this.group.position.y = this.groundY + bob + dip;
+      this.group.rotation.z = tilt;
+    } else if (!this.isJumping && !this.isDucking) {
+      const bob = Math.sin(Date.now() * 0.008) * 0.03;
+      this.character.position.y = 0.15 + bob;
     }
   }
 

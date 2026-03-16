@@ -146,32 +146,30 @@ export class CoinManager {
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({
       color: 0x44aaff,
-      metalness: 0.3,
+      metalness: 0.4,
       roughness: 0.1,
       emissive: 0x2288dd,
       emissiveIntensity: 0.4,
       transparent: true,
       opacity: 0.85,
-      side: THREE.DoubleSide,
     });
 
-    // Teardrop shape — wider at bottom, pointed at top
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0.35);   // top point
-    shape.bezierCurveTo(0.04, 0.28, 0.18, 0.1, 0.2, -0.05);
-    shape.bezierCurveTo(0.22, -0.18, 0.12, -0.32, 0, -0.35);
-    shape.bezierCurveTo(-0.12, -0.32, -0.22, -0.18, -0.2, -0.05);
-    shape.bezierCurveTo(-0.18, 0.1, -0.04, 0.28, 0, 0.35);
+    // 3D teardrop from spheres — round bottom, tapered top
+    // Main body — sphere
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), mat);
+    body.position.y = -0.05;
+    group.add(body);
 
-    const geo = new THREE.ShapeGeometry(shape);
-    // Front face
-    const drop1 = new THREE.Mesh(geo, mat);
-    drop1.castShadow = true;
-    group.add(drop1);
-    // Back face
-    const drop2 = new THREE.Mesh(geo, mat);
-    drop2.rotation.y = Math.PI;
-    group.add(drop2);
+    // Tapered top — cone pointing up
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.3, 10), mat);
+    tip.position.y = 0.22;
+    group.add(tip);
+
+    // Highlight gleam
+    const hlMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), hlMat);
+    hl.position.set(0.08, 0.05, 0.15);
+    group.add(hl);
 
     return group;
   }
@@ -230,7 +228,8 @@ export class CoinManager {
       coin.mesh.position.z -= moveAmount;
       // Spin and float
       coin.mesh.rotation.y += dt * 2;
-      if (this.game.seasonManager.season !== 'autumn') {
+      const s = this.game.seasonManager.season;
+      if (s !== 'autumn' && s !== 'spring') {
         coin.mesh.rotation.z += dt * 0.5;
       }
       coin.mesh.position.y = coin.baseY + Math.sin(time + coin.mesh.position.z * 0.5) * 0.15;

@@ -733,7 +733,8 @@ export class ObstacleManager {
     for (let i = 0; i < clumpCount; i++) {
       const t = (i + 0.5) / clumpCount;
       const cx = trunkX + (-side * branchLength * t);
-      if (!isAutumn && Math.random() > 0.5) {
+      const isWinter = this.game.seasonManager.season === 'winter';
+      if (isWinter && Math.random() > 0.5) {
         const snowGeo = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 5, 4);
         const snowClump = new THREE.Mesh(snowGeo, new THREE.MeshStandardMaterial({ color: 0xfafafa }));
         snowClump.position.set(cx, 2.15 + Math.random() * 0.2, (Math.random() - 0.5) * 0.4);

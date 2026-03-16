@@ -342,6 +342,7 @@ export class Game {
     this.currentMountainSeason = '';
     this.createMountains();
     this.laneHeightMap.reset();
+    this.player.reset();
     this.trackManager.reset();
 
     this.clock.start();

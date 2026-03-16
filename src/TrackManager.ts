@@ -472,24 +472,21 @@ export class TrackManager {
       }
     }
 
-    // Pine trees and deciduous trees on top of the embankment
+    // Large trees on top of the embankment — many and close to overhang the river
     for (const side of [-1, 1]) {
-      if (Math.random() > 0.4) {
-        const tree = this.createPineTree();
+      const treeCount = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < treeCount; i++) {
+        const usePine = Math.random() > 0.5;
+        const tree = usePine ? this.createPineTree() : this.createSpringDeciduousTree();
+        // Place close to the track edge so foliage overhangs the water
+        const dist = trackWidth / 2 + 2 + Math.random() * 6;
         tree.position.set(
-          side * (trackWidth / 2 + 5 + Math.random() * 10),
+          side * dist,
           4,
           Math.random() * CHUNK_LENGTH
         );
-        chunk.add(tree);
-      }
-      if (Math.random() > 0.5) {
-        const tree = this.createSpringDeciduousTree();
-        tree.position.set(
-          side * (trackWidth / 2 + 4 + Math.random() * 12),
-          4,
-          Math.random() * CHUNK_LENGTH
-        );
+        // Make them large
+        tree.scale.multiplyScalar(1.2 + Math.random() * 0.8);
         chunk.add(tree);
       }
     }
@@ -639,10 +636,10 @@ export class TrackManager {
     const laneW = this.game.laneWidth;
     const season = this.game.seasonManager.season;
     const wallColor = season === 'autumn' ? 0x7a6040
-      : season === 'spring' ? 0x5a6a4a
+      : season === 'spring' ? 0x2a7090
       : 0xaaddee;
     const faceColor = season === 'autumn' ? 0x6b5535
-      : season === 'spring' ? 0x4a5a3a
+      : season === 'spring' ? 0x1a5a78
       : 0x99ccdd;
     const wallMat = new THREE.MeshStandardMaterial({ color: wallColor });
     const sideGeo = new THREE.BoxGeometry(0.2, height, length);
