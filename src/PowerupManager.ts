@@ -196,15 +196,19 @@ export class PowerupManager {
   }
 
   private activateShield() {
-    const isAutumn = this.game.seasonManager.season === 'autumn';
+    const season = this.game.seasonManager.season;
+    const isAutumn = season === 'autumn';
+    const isSpring = season === 'spring';
     this.bobsledShield = true;
     this.bobsledHitsLeft = 3;
-    this.isSnowmobile = isAutumn || this.game.score >= 6000;
+    this.isSnowmobile = isAutumn || (!isSpring && this.game.score >= 6000);
     const v = this.game.player.currentVehicle;
-    if (v !== 'bobsled' && v !== 'motorbike') {
+    if (v !== 'bobsled' && v !== 'motorbike' && v !== 'canoe') {
       this.preShieldVehicle = v as 'skis' | 'snowboard' | 'rainbowSkis';
     }
-    if (isAutumn) {
+    if (isSpring) {
+      this.game.player.switchVehicle('canoe');
+    } else if (isAutumn) {
       this.game.player.switchVehicle('motorbike');
       this.game.soundManager.startMotor();
     } else {
@@ -220,7 +224,7 @@ export class PowerupManager {
     this.game.soundManager.playCollect();
     const el = document.getElementById('shield-display')!;
     el.style.display = 'block';
-    el.textContent = isAutumn ? '🏍️ x3' : this.isSnowmobile ? '🏔️ x3' : '🛷 x3';
+    el.textContent = isSpring ? '🛶 x3' : isAutumn ? '🏍️ x3' : this.isSnowmobile ? '🏔️ x3' : '🛷 x3';
   }
 
   private deactivateShield() {

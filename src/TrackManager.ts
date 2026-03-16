@@ -74,8 +74,9 @@ export class TrackManager {
     const endHeights: [number, number, number] = [...this.laneEndHeights];
 
     if (!isFlatChunk) {
+      const rampChance = season === 'spring' ? 1.0 : 0.55;
       for (let i = 0; i < 3; i++) {
-        if (Math.random() < 0.55) {
+        if (Math.random() < rampChance) {
           const candidates = HEIGHTS.filter(h => h !== startHeights[i]);
           endHeights[i] = candidates[Math.floor(Math.random() * candidates.length)];
         }
@@ -662,6 +663,7 @@ export class TrackManager {
   private createPineTree(): THREE.Group {
     const tree = new THREE.Group();
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+    const isWinter = this.game.seasonManager.season === 'winter';
     const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
     const variant = Math.floor(Math.random() * 3);
 
@@ -677,9 +679,11 @@ export class TrackManager {
         cone.castShadow = true;
         tree.add(cone);
       }
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.6, 8), snowMat);
-      cap.position.y = 6;
-      tree.add(cap);
+      if (isWinter) {
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.6, 8), snowMat);
+        cap.position.y = 6;
+        tree.add(cap);
+      }
     } else if (variant === 1) {
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 3, 6), trunkMat);
       trunk.position.y = 1.5;
@@ -692,9 +696,11 @@ export class TrackManager {
         cone.castShadow = true;
         tree.add(cone);
       }
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 6), snowMat);
-      cap.position.y = 7.3;
-      tree.add(cap);
+      if (isWinter) {
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 6), snowMat);
+        cap.position.y = 7.3;
+        tree.add(cap);
+      }
     } else {
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.5, 6), trunkMat);
       trunk.position.y = 0.75;
@@ -707,14 +713,16 @@ export class TrackManager {
         cone.castShadow = true;
         tree.add(cone);
       }
-      for (let i = 0; i < 2; i++) {
-        const snow = new THREE.Mesh(new THREE.ConeGeometry(1.7 - i * 0.4, 0.35, 8), snowMat);
-        snow.position.y = 2.4 + i * 1.1;
-        tree.add(snow);
+      if (isWinter) {
+        for (let i = 0; i < 2; i++) {
+          const snow = new THREE.Mesh(new THREE.ConeGeometry(1.7 - i * 0.4, 0.35, 8), snowMat);
+          snow.position.y = 2.4 + i * 1.1;
+          tree.add(snow);
+        }
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.5, 8), snowMat);
+        cap.position.y = 4.5;
+        tree.add(cap);
       }
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.5, 8), snowMat);
-      cap.position.y = 4.5;
-      tree.add(cap);
     }
 
     const scale = 0.6 + Math.random() * 0.6;

@@ -1133,10 +1133,8 @@ export class Player {
   waterfallDrop() {
     this.isJumping = true;
     this.landSoundPlayed = false;
-    // Start with zero upward velocity — pure drop
-    this.jumpVelocity = 0;
-    // Lift the player up first to simulate going over the cliff edge
-    this.group.position.y += 3;
+    // Strong downward velocity — feels like dropping off a cliff
+    this.jumpVelocity = -15;
     this.game.soundManager.playSplash();
   }
 
