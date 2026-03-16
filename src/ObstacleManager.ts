@@ -99,7 +99,9 @@ export class ObstacleManager {
       const numLanes = Math.random() > 0.5 ? 2 : 1;
       const fromLeft = Math.random() > 0.5;
       const { group, collider } = this.createTreeBranch(numLanes, fromLeft);
-      group.position.set(0, 0, this.spawnZ);
+      const branchLane = fromLeft ? -1 : 1;
+      const branchY = this.game.laneHeightMap.getHeight(branchLane, this.spawnZ);
+      group.position.set(0, branchY, this.spawnZ);
       this.game.scene.add(group);
       this.obstacles.push({ mesh: group, collider, active: true });
     } else {

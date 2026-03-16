@@ -13,7 +13,7 @@ export class Player {
 
   // Jump
   isJumping = false;
-  private jumpVelocity = 0;
+  jumpVelocity = 0;
   private readonly jumpForce = 12;
   private readonly gravity = -30;
   private groundY = 0.5;
@@ -27,6 +27,7 @@ export class Player {
   private landSoundPlayed = false;
   private landingDipTimer = 0;
   private landingDipDepth = 0;
+  private landingDipDuration = 0.8;
   private wasOnUpRamp = false;
   private readonly rampLaunchForce = 8;
 
@@ -1368,8 +1369,10 @@ export class Player {
         // Landing dip for water vehicles — scales with fall speed
         const inWater = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
         if (inWater) {
-          this.landingDipTimer = 0.8;
-          this.landingDipDepth = Math.min(fallSpeed * 0.04, 1.2);
+          const bigDrop = fallSpeed > 10;
+          this.landingDipDuration = bigDrop ? 1.4 : 0.8;
+          this.landingDipTimer = this.landingDipDuration;
+          this.landingDipDepth = bigDrop ? 2.5 : Math.min(fallSpeed * 0.04, 1.2);
           this.landingDipDepth = Math.max(this.landingDipDepth, 0.15);
         }
       }
@@ -1377,10 +1380,11 @@ export class Player {
       // Snap/lerp to ground height (handles ramps and dropping from high to low lane)
       const targetY = this.groundY;
       if (this.group.position.y > targetY + 0.1) {
-        // Falling from a higher lane — apply gravity
+        const dropAmount = this.group.position.y - targetY;
         this.isJumping = true;
         this.landSoundPlayed = false;
-        this.jumpVelocity = 0;
+        this.jumpVelocity = dropAmount > 2 ? -8 : 0;
+        if (dropAmount > 2) this.game.soundManager.playSplash();
       } else {
         this.group.position.y = targetY;
       }
@@ -1425,11 +1429,23 @@ export class Player {
       // Constant water bobbing
       const bob = Math.sin(Date.now() * 0.005) * 0.1;
       const tilt = Math.sin(Date.now() * 0.004 + 1) * 0.03;
-      // Landing dip
+      // Landing dip — submerge then pop up above water
       let dip = 0;
       if (this.landingDipTimer > 0) {
         this.landingDipTimer -= dt;
-        dip = -Math.sin(this.landingDipTimer / 0.8 * Math.PI) * this.landingDipDepth;
+        const t = 1 - this.landingDipTimer / this.landingDipDuration; // 0→1
+        if (t < 0.4) {
+          // Plunge down
+          dip = -Math.sin(t / 0.4 * Math.PI / 2) * this.landingDipDepth;
+        } else if (t < 0.7) {
+          // Rise back up and pop above surface
+          const rise = (t - 0.4) / 0.3; // 0→1
+          dip = -this.landingDipDepth + (this.landingDipDepth + this.landingDipDepth * 0.35) * rise;
+        } else {
+          // Settle back to surface
+          const settle = (t - 0.7) / 0.3; // 0→1
+          dip = this.landingDipDepth * 0.35 * (1 - settle);
+        }
       }
       this.group.position.y = this.groundY + bob + dip;
       this.group.rotation.z = tilt;

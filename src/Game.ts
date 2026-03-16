@@ -44,6 +44,10 @@ export class Game {
   // Crash animation
   private crashedCharacter: THREE.Group | null = null;
 
+  // Smooth camera follow for waterfall drops
+  private cameraCurrentY = 10;
+  private cameraLookDownOffset = 0;
+
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
   groundMesh!: THREE.Mesh;
@@ -152,7 +156,7 @@ export class Game {
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
     this.groundMesh = new THREE.Mesh(groundGeo, groundMat);
     this.groundMesh.rotation.x = -Math.PI / 2;
-    this.groundMesh.position.y = -0.05;
+    this.groundMesh.position.y = -100;
     this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
 
@@ -333,6 +337,8 @@ export class Game {
     this.running = true;
     this.gameOver = false;
     this.score = 0;
+    this.cameraCurrentY = 10;
+    this.cameraLookDownOffset = 0;
     this.coins = 0;
     this.speed = this.baseSpeed;
 
@@ -397,11 +403,26 @@ export class Game {
     this.environmentManager.updateSteepness(dt);
     const steepness = this.environmentManager.steepness;
 
-    // Update camera
-    const camY = 10 + steepness * 4;
-    const lookY = 2 - steepness * 4;
-    this.camera.position.y = camY;
+    // Update camera — smooth follow for waterfall drops
+    const playerGroundY = this.laneHeightMap.getHeight(this.player.targetLane, 0);
+    const targetCamY = playerGroundY + 10 + steepness * 4;
+    this.cameraCurrentY += (targetCamY - this.cameraCurrentY) * Math.min(dt * 3, 1);
+    this.camera.position.y = this.cameraCurrentY;
+
+    // Tilt camera to look over player during falls
+    const isFalling = this.player.isJumping && this.player.jumpVelocity < -2;
+    const targetLookDown = isFalling ? -2.0 : 0;
+    this.cameraLookDownOffset += (targetLookDown - this.cameraLookDownOffset) * Math.min(dt * 4, 1);
+    const lookY = playerGroundY + 2 - steepness * 4 + this.cameraLookDownOffset;
     this.camera.lookAt(0, lookY, 25);
+
+    // Move background elements to follow waterfall drops
+    const baseY = this.trackManager.currentBaseY;
+    this.groundMesh.position.y = baseY - 100;
+    for (const m of this.mountainMeshes) {
+      (m as any)._origY ??= m.position.y;
+      m.position.y = (m as any)._origY + baseY;
+    }
 
     // Increase speed over time
     const steepnessBoost = steepness * 12;

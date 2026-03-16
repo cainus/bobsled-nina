@@ -8,6 +8,7 @@ const VISIBLE_AHEAD = 160;
 // Possible lane heights
 const HEIGHTS = [0, 1.5, 3];
 const RAMP_LENGTH = 6;
+const WATERFALL_DROP = 16;
 
 export class TrackManager {
   game: Game;
@@ -16,6 +17,10 @@ export class TrackManager {
 
   // Current height of each lane at the far end of the last chunk (carry forward)
   private laneEndHeights: [number, number, number] = [0, 0, 0];
+
+  // Waterfall system — cumulative world drop in Spring
+  currentBaseY = 0;
+  private chunksSinceLastWaterfall = 0;
 
   // Shared materials (updated per season)
   private wallMat: THREE.MeshStandardMaterial;
@@ -61,15 +66,26 @@ export class TrackManager {
   }
 
   private addChunk() {
-    const chunk = new THREE.Group();
-    chunk.position.z = this.nextChunkZ;
-
     const { season, laneColors, wallColor } = this.getSeasonMaterials();
     const laneW = this.game.laneWidth;
     const trackWidth = laneW * 3 + 2;
+    const isFlatChunk = this.nextChunkZ < 40;
+
+    // Check if this should be a waterfall chunk
+    const isWaterfallChunk = season === 'spring' && !isFlatChunk && this.shouldSpawnWaterfall();
+    if (isWaterfallChunk) {
+      this.addWaterfallChunk(laneColors, trackWidth, laneW);
+      return;
+    }
+
+    if (season === 'spring') {
+      this.chunksSinceLastWaterfall++;
+    }
+
+    const chunk = new THREE.Group();
+    chunk.position.z = this.nextChunkZ;
 
     // Decide target heights for each lane in this chunk
-    const isFlatChunk = this.nextChunkZ < 40;
     const startHeights: [number, number, number] = [...this.laneEndHeights];
     const endHeights: [number, number, number] = [...this.laneEndHeights];
 
@@ -82,6 +98,8 @@ export class TrackManager {
         }
       }
     }
+
+    const baseY = this.currentBaseY;
 
     // Build each lane
     for (let li = 0; li < 3; li++) {
@@ -103,7 +121,7 @@ export class TrackManager {
         const geo = new THREE.PlaneGeometry(laneW - 0.15, CHUNK_LENGTH);
         const mesh = new THREE.Mesh(geo, laneMat);
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(laneX, sY, CHUNK_LENGTH / 2);
+        mesh.position.set(laneX, sY + baseY, CHUNK_LENGTH / 2);
         mesh.receiveShadow = true;
         chunk.add(mesh);
 
@@ -118,7 +136,7 @@ export class TrackManager {
             foam.rotation.x = -Math.PI / 2;
             foam.position.set(
               laneX + (Math.random() - 0.5) * (laneW - 0.5),
-              sY + 0.02,
+              sY + baseY + 0.02,
               Math.random() * CHUNK_LENGTH
             );
             chunk.add(foam);
@@ -126,15 +144,15 @@ export class TrackManager {
         }
 
         if (sY > 0) {
-          this.addLaneSupportWall(chunk, laneX, sY, 0, CHUNK_LENGTH);
+          this.addLaneSupportWall(chunk, laneX, sY, 0, CHUNK_LENGTH, baseY);
         }
 
         this.game.laneHeightMap.add({
           lane: laneIndex,
           startZ: this.nextChunkZ,
           endZ: this.nextChunkZ + CHUNK_LENGTH,
-          startY: sY,
-          endY: sY,
+          startY: sY + baseY,
+          endY: sY + baseY,
         });
       } else {
         const rampStart = season === 'spring' ? CHUNK_LENGTH * 0.1 : CHUNK_LENGTH * 0.3;
@@ -144,48 +162,48 @@ export class TrackManager {
         const flat1Geo = new THREE.PlaneGeometry(laneW - 0.15, rampStart);
         const flat1 = new THREE.Mesh(flat1Geo, laneMat);
         flat1.rotation.x = -Math.PI / 2;
-        flat1.position.set(laneX, sY, rampStart / 2);
+        flat1.position.set(laneX, sY + baseY, rampStart / 2);
         flat1.receiveShadow = true;
         chunk.add(flat1);
 
         if (sY > 0) {
-          this.addLaneSupportWall(chunk, laneX, sY, 0, rampStart);
+          this.addLaneSupportWall(chunk, laneX, sY, 0, rampStart, baseY);
         }
 
-        const rampGroup = this.createRamp(laneX, laneW - 0.15, sY, eY, rampStart, RAMP_LENGTH);
+        const rampGroup = this.createRamp(laneX, laneW - 0.15, sY + baseY, eY + baseY, rampStart, RAMP_LENGTH);
         chunk.add(rampGroup);
 
         const flat2Geo = new THREE.PlaneGeometry(laneW - 0.15, flatAfter);
         const flat2 = new THREE.Mesh(flat2Geo, laneMat);
         flat2.rotation.x = -Math.PI / 2;
-        flat2.position.set(laneX, eY, rampEnd + flatAfter / 2);
+        flat2.position.set(laneX, eY + baseY, rampEnd + flatAfter / 2);
         flat2.receiveShadow = true;
         chunk.add(flat2);
 
         if (eY > 0) {
-          this.addLaneSupportWall(chunk, laneX, eY, rampEnd, flatAfter);
+          this.addLaneSupportWall(chunk, laneX, eY, rampEnd, flatAfter, baseY);
         }
 
         this.game.laneHeightMap.add({
           lane: laneIndex,
           startZ: this.nextChunkZ,
           endZ: this.nextChunkZ + rampStart,
-          startY: sY,
-          endY: sY,
+          startY: sY + baseY,
+          endY: sY + baseY,
         });
         this.game.laneHeightMap.add({
           lane: laneIndex,
           startZ: this.nextChunkZ + rampStart,
           endZ: this.nextChunkZ + rampEnd,
-          startY: sY,
-          endY: eY,
+          startY: sY + baseY,
+          endY: eY + baseY,
         });
         this.game.laneHeightMap.add({
           lane: laneIndex,
           startZ: this.nextChunkZ + rampEnd,
           endZ: this.nextChunkZ + CHUNK_LENGTH,
-          startY: eY,
-          endY: eY,
+          startY: eY + baseY,
+          endY: eY + baseY,
         });
       }
     }
@@ -193,7 +211,7 @@ export class TrackManager {
     // Side walls — taller rocky canyon walls in spring
     const isSpringWalls = season === 'spring';
     const wallH = isSpringWalls ? 5.0 : 2.5;
-    const wallY = isSpringWalls ? 2.5 : 1.0;
+    const wallY = isSpringWalls ? baseY + 2.5 : 1.0;
     const springRockMat = new THREE.MeshStandardMaterial({ color: 0x6a6a5a, roughness: 0.95 });
     const wallMat2 = isSpringWalls ? springRockMat : new THREE.MeshStandardMaterial({ color: wallColor });
     const wallGeo = new THREE.BoxGeometry(isSpringWalls ? 1.2 : 0.6, wallH, CHUNK_LENGTH);
@@ -218,6 +236,234 @@ export class TrackManager {
     }
 
     this.laneEndHeights = endHeights;
+    this.game.scene.add(chunk);
+    this.chunks.push(chunk);
+    this.nextChunkZ += CHUNK_LENGTH;
+  }
+
+  private shouldSpawnWaterfall(): boolean {
+    const minChunks = 3;
+    const maxChunks = 5;
+    if (this.chunksSinceLastWaterfall < minChunks) return false;
+    if (this.chunksSinceLastWaterfall >= maxChunks) return true;
+    return Math.random() < 0.5;
+  }
+
+  private addWaterfallChunk(laneColors: number[], trackWidth: number, laneW: number) {
+    const chunk = new THREE.Group();
+    chunk.position.z = this.nextChunkZ;
+
+    const baseY = this.currentBaseY;
+    const dropAmount = WATERFALL_DROP;
+
+    // Force all lanes to height 0 (relative) for a clean cliff edge
+    const approachLen = CHUNK_LENGTH * 0.6;
+    const dropLen = CHUNK_LENGTH * 0.4;
+    const dropStartZ = approachLen;
+
+    const laneMat = new THREE.MeshStandardMaterial({
+      color: laneColors[1],
+      metalness: 0.4,
+      roughness: 0.15,
+      transparent: true,
+      opacity: 0.85,
+    });
+
+    for (let li = 0; li < 3; li++) {
+      const laneIndex = li - 1;
+      const laneX = laneIndex * laneW;
+      const sY = this.laneEndHeights[li];
+
+      // If lane is elevated, ramp down to 0 first
+      if (sY > 0) {
+        const rampLen = Math.min(RAMP_LENGTH, approachLen * 0.5);
+        // Flat at current height
+        const flat1 = new THREE.Mesh(
+          new THREE.PlaneGeometry(laneW - 0.15, 2),
+          laneMat
+        );
+        flat1.rotation.x = -Math.PI / 2;
+        flat1.position.set(laneX, sY + baseY, 1);
+        flat1.receiveShadow = true;
+        chunk.add(flat1);
+
+        // Ramp down
+        const rampGroup = this.createRamp(laneX, laneW - 0.15, sY + baseY, baseY, 2, rampLen);
+        chunk.add(rampGroup);
+
+        // Flat approach after ramp
+        const flatLen = approachLen - 2 - rampLen;
+        if (flatLen > 0) {
+          const flat2 = new THREE.Mesh(
+            new THREE.PlaneGeometry(laneW - 0.15, flatLen),
+            laneMat
+          );
+          flat2.rotation.x = -Math.PI / 2;
+          flat2.position.set(laneX, baseY, 2 + rampLen + flatLen / 2);
+          flat2.receiveShadow = true;
+          chunk.add(flat2);
+        }
+
+        this.game.laneHeightMap.add({
+          lane: laneIndex,
+          startZ: this.nextChunkZ,
+          endZ: this.nextChunkZ + 2,
+          startY: sY + baseY,
+          endY: sY + baseY,
+        });
+        this.game.laneHeightMap.add({
+          lane: laneIndex,
+          startZ: this.nextChunkZ + 2,
+          endZ: this.nextChunkZ + 2 + rampLen,
+          startY: sY + baseY,
+          endY: baseY,
+        });
+        this.game.laneHeightMap.add({
+          lane: laneIndex,
+          startZ: this.nextChunkZ + 2 + rampLen,
+          endZ: this.nextChunkZ + approachLen,
+          startY: baseY,
+          endY: baseY,
+        });
+      } else {
+        // Flat approach at baseY
+        const flat = new THREE.Mesh(
+          new THREE.PlaneGeometry(laneW - 0.15, approachLen),
+          laneMat
+        );
+        flat.rotation.x = -Math.PI / 2;
+        flat.position.set(laneX, baseY, approachLen / 2);
+        flat.receiveShadow = true;
+        chunk.add(flat);
+
+        this.game.laneHeightMap.add({
+          lane: laneIndex,
+          startZ: this.nextChunkZ,
+          endZ: this.nextChunkZ + approachLen,
+          startY: baseY,
+          endY: baseY,
+        });
+      }
+
+      // Foam on approach
+      const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+      const foamCount = 3 + Math.floor(Math.random() * 3);
+      for (let fi = 0; fi < foamCount; fi++) {
+        const fw = 0.15 + Math.random() * 0.3;
+        const fl = 1.5 + Math.random() * 3;
+        const foam = new THREE.Mesh(new THREE.PlaneGeometry(fw, fl), foamMat);
+        foam.rotation.x = -Math.PI / 2;
+        foam.position.set(
+          laneX + (Math.random() - 0.5) * (laneW - 0.5),
+          baseY + 0.02,
+          Math.random() * approachLen
+        );
+        chunk.add(foam);
+      }
+
+      // Steep drop ramp — all lanes drop together
+      const dropTopY = baseY;
+      const dropBottomY = baseY - dropAmount;
+
+      const rampGroup = this.createRamp(laneX, laneW - 0.15, dropTopY, dropBottomY, dropStartZ, dropLen, true);
+      chunk.add(rampGroup);
+
+      this.game.laneHeightMap.add({
+        lane: laneIndex,
+        startZ: this.nextChunkZ + dropStartZ,
+        endZ: this.nextChunkZ + CHUNK_LENGTH,
+        startY: dropTopY,
+        endY: dropBottomY,
+      });
+    }
+
+    // Cliff lip — rocky edge spanning full track width
+    const lipMat = new THREE.MeshStandardMaterial({ color: 0x5a5a4a, roughness: 0.95 });
+    const lip = new THREE.Mesh(
+      new THREE.BoxGeometry(trackWidth + 2, 1.5, 1.2),
+      lipMat
+    );
+    lip.position.set(0, baseY + 0.3, dropStartZ - 0.3);
+    lip.castShadow = true;
+    chunk.add(lip);
+
+    // Vertical rock face under the cliff
+    const rockFaceMat = new THREE.MeshStandardMaterial({ color: 0x4a4a3a, roughness: 0.9 });
+    const rockFace = new THREE.Mesh(
+      new THREE.BoxGeometry(trackWidth + 3, dropAmount, 1.5),
+      rockFaceMat
+    );
+    rockFace.position.set(0, baseY - dropAmount / 2, dropStartZ + 0.5);
+    rockFace.castShadow = true;
+    chunk.add(rockFace);
+
+    // Cascading water streaks on the cliff face
+    const waterStreakMat = new THREE.MeshStandardMaterial({
+      color: 0xccddff,
+      transparent: true,
+      opacity: 0.5,
+      metalness: 0.3,
+      roughness: 0.1,
+    });
+    for (let i = 0; i < 15; i++) {
+      const sw = 0.15 + Math.random() * 0.25;
+      const sh = dropAmount * (0.5 + Math.random() * 0.5);
+      const streak = new THREE.Mesh(
+        new THREE.PlaneGeometry(sw, sh),
+        waterStreakMat
+      );
+      streak.position.set(
+        (Math.random() - 0.5) * (trackWidth + 1),
+        baseY - dropAmount / 2 + (Math.random() - 0.5) * 2,
+        dropStartZ + 0.2
+      );
+      chunk.add(streak);
+    }
+
+    // Mist spheres at the base of the waterfall
+    const mistMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.25,
+    });
+    for (let i = 0; i < 8; i++) {
+      const mist = new THREE.Mesh(
+        new THREE.SphereGeometry(1 + Math.random() * 1.5, 8, 6),
+        mistMat
+      );
+      mist.position.set(
+        (Math.random() - 0.5) * trackWidth,
+        baseY - dropAmount + 0.5,
+        dropStartZ + dropLen * 0.3 + Math.random() * dropLen * 0.5
+      );
+      chunk.add(mist);
+    }
+
+    // Side walls for this chunk — extend from top to bottom
+    const springRockMat = new THREE.MeshStandardMaterial({ color: 0x6a6a5a, roughness: 0.95 });
+    const wallH = 5.0 + dropAmount;
+    const wallGeo = new THREE.BoxGeometry(1.2, wallH, CHUNK_LENGTH);
+    for (const side of [-1, 1]) {
+      const wallX = side * (trackWidth / 2 + 0.6);
+      const wall = new THREE.Mesh(wallGeo, springRockMat);
+      wall.position.set(wallX, baseY - dropAmount / 2 + 2.5, CHUNK_LENGTH / 2);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      chunk.add(wall);
+    }
+
+    this.addSpringSides(chunk, trackWidth);
+
+    // Update state
+    this.currentBaseY -= dropAmount;
+    this.laneEndHeights = [0, 0, 0];
+    this.chunksSinceLastWaterfall = 0;
+
+    // Suppress obstacles after waterfall
+    if (this.game.obstacleManager) {
+      this.game.obstacleManager.spawnTimer = -3;
+    }
+
     this.game.scene.add(chunk);
     this.chunks.push(chunk);
     this.nextChunkZ += CHUNK_LENGTH;
@@ -431,6 +677,8 @@ export class TrackManager {
   }
 
   private addSpringSides(chunk: THREE.Group, trackWidth: number) {
+    const baseY = this.currentBaseY;
+
     // High rocky embankments — raised terrain above the water
     const embankMat = new THREE.MeshStandardMaterial({ color: 0x5a6a4a, roughness: 0.85 });
     const grassMat = new THREE.MeshStandardMaterial({ color: 0x4a8a3a, roughness: 0.8 });
@@ -439,21 +687,21 @@ export class TrackManager {
       // Rocky face along the water edge
       const faceGeo = new THREE.BoxGeometry(1.0, 5, CHUNK_LENGTH);
       const face = new THREE.Mesh(faceGeo, rockMat);
-      face.position.set(side * (trackWidth / 2 + 0.8), 2.5, CHUNK_LENGTH / 2);
+      face.position.set(side * (trackWidth / 2 + 0.8), baseY + 2.5, CHUNK_LENGTH / 2);
       face.castShadow = true;
       chunk.add(face);
 
       // Raised earth bank right above the rock face
       const bankGeo = new THREE.BoxGeometry(6, 3, CHUNK_LENGTH);
       const bank = new THREE.Mesh(bankGeo, embankMat);
-      bank.position.set(side * (trackWidth / 2 + 3.8), 3.5, CHUNK_LENGTH / 2);
+      bank.position.set(side * (trackWidth / 2 + 3.8), baseY + 3.5, CHUNK_LENGTH / 2);
       bank.receiveShadow = true;
       chunk.add(bank);
 
       // Extended ground plane beyond — wide raised grass terrain
       const outerGeo = new THREE.BoxGeometry(40, 2, CHUNK_LENGTH);
       const outer = new THREE.Mesh(outerGeo, grassMat);
-      outer.position.set(side * (trackWidth / 2 + 26), 4.0, CHUNK_LENGTH / 2);
+      outer.position.set(side * (trackWidth / 2 + 26), baseY + 4.0, CHUNK_LENGTH / 2);
       outer.receiveShadow = true;
       chunk.add(outer);
     }
@@ -465,7 +713,7 @@ export class TrackManager {
         const rock = this.createSideRock();
         rock.position.set(
           side * (trackWidth / 2 + 1.5 + Math.random() * 4),
-          2 + Math.random() * 2,
+          baseY + 2 + Math.random() * 2,
           Math.random() * CHUNK_LENGTH
         );
         rock.scale.multiplyScalar(0.4 + Math.random() * 0.5);
@@ -483,7 +731,7 @@ export class TrackManager {
         const dist = trackWidth / 2 + 2 + Math.random() * 6;
         tree.position.set(
           side * dist,
-          4,
+          baseY + 4,
           Math.random() * CHUNK_LENGTH
         );
         // Make them large
@@ -502,7 +750,7 @@ export class TrackManager {
         const flower = new THREE.Mesh(new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 6, 4), flowerMat);
         flower.position.set(
           side * (trackWidth / 2 + 2 + Math.random() * 4),
-          5.1,
+          baseY + 5.1,
           Math.random() * CHUNK_LENGTH
         );
         chunk.add(flower);
@@ -594,7 +842,8 @@ export class TrackManager {
   private createRamp(
     laneX: number, width: number,
     fromY: number, toY: number,
-    localZ: number, length: number
+    localZ: number, length: number,
+    skipSideWalls = false
   ): THREE.Group {
     const group = new THREE.Group();
     const heightDiff = toY - fromY;
@@ -620,20 +869,22 @@ export class TrackManager {
     ramp.receiveShadow = true;
     group.add(ramp);
 
-    const sideMat = new THREE.MeshStandardMaterial({ color: sideColor });
-    for (const side of [-1, 1]) {
-      const sideGeo = new THREE.BoxGeometry(0.2, 0.5, slopeLen);
-      const sideWall = new THREE.Mesh(sideGeo, sideMat);
-      sideWall.position.set(laneX + side * hw, (fromY + toY) / 2, localZ + length / 2);
-      sideWall.rotation.x = -angle;
-      sideWall.castShadow = true;
-      group.add(sideWall);
+    if (!skipSideWalls) {
+      const sideMat = new THREE.MeshStandardMaterial({ color: sideColor });
+      for (const side of [-1, 1]) {
+        const sideGeo = new THREE.BoxGeometry(0.2, 0.5, slopeLen);
+        const sideWall = new THREE.Mesh(sideGeo, sideMat);
+        sideWall.position.set(laneX + side * hw, (fromY + toY) / 2, localZ + length / 2);
+        sideWall.rotation.x = -angle;
+        sideWall.castShadow = true;
+        group.add(sideWall);
+      }
     }
 
     return group;
   }
 
-  private addLaneSupportWall(chunk: THREE.Group, laneX: number, height: number, localZ: number, length: number) {
+  private addLaneSupportWall(chunk: THREE.Group, laneX: number, height: number, localZ: number, length: number, yOffset = 0) {
     const laneW = this.game.laneWidth;
     const season = this.game.seasonManager.season;
     const wallColor = season === 'autumn' ? 0x7a6040
@@ -646,7 +897,7 @@ export class TrackManager {
     const sideGeo = new THREE.BoxGeometry(0.2, height, length);
     for (const side of [-1, 1]) {
       const sideWall = new THREE.Mesh(sideGeo, wallMat);
-      sideWall.position.set(laneX + side * (laneW - 0.15) / 2, height / 2, localZ + length / 2);
+      sideWall.position.set(laneX + side * (laneW - 0.15) / 2, yOffset + height / 2, localZ + length / 2);
       sideWall.receiveShadow = true;
       sideWall.castShadow = true;
       chunk.add(sideWall);
@@ -654,7 +905,7 @@ export class TrackManager {
     const faceGeo = new THREE.BoxGeometry(laneW - 0.15, height, 0.2);
     const faceMat = new THREE.MeshStandardMaterial({ color: faceColor });
     const face = new THREE.Mesh(faceGeo, faceMat);
-    face.position.set(laneX, height / 2, localZ + 0.1);
+    face.position.set(laneX, yOffset + height / 2, localZ + 0.1);
     face.receiveShadow = true;
     face.castShadow = true;
     chunk.add(face);
@@ -966,6 +1217,8 @@ export class TrackManager {
     this.chunks = [];
     this.nextChunkZ = 0;
     this.laneEndHeights = [0, 0, 0];
+    this.currentBaseY = 0;
+    this.chunksSinceLastWaterfall = 0;
     this.spawnInitialChunks();
   }
 }
