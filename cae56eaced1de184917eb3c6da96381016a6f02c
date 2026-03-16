@@ -1,0 +1,27 @@
+src/TrackManager.ts
+  ed24b2cc852edc7c 77,79,666,682,686,699,703,716,720-721
+src/PowerupManager.ts
+  ed24b2cc852edc7c 199-201,204,206,209-211,227
+src/Player.ts
+  ed24b2cc852edc7c 1136-1137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "cae56eaced1de184917eb3c6da96381016a6f02c",
+  "prompts": {
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 34,
+      "total_deletions": 24,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}
