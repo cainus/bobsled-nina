@@ -37,7 +37,7 @@ export class Player {
 
   // Vehicle + character meshes
   private vehicle!: THREE.Group;
-  private character!: THREE.Group;
+  character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
   currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak' | 'canoe' = 'skis';
   private isMetalMode = false;
@@ -45,6 +45,7 @@ export class Player {
   private readonly metalColor = 0x111111;
   private crankGroup: THREE.Group | null = null;
   private paddleGroup: THREE.Group | null = null;
+  private blackHelmetGroup: THREE.Group | null = null;
   private leftLeg: THREE.Group | null = null;
   private rightLeg: THREE.Group | null = null;
 
@@ -883,14 +884,15 @@ export class Player {
     mouth.rotation.x = Math.PI;
     headGroup.add(mouth);
 
-    // Helmet — black ski helmet, open face
+    // Helmet — black ski helmet, open face (in a group so it can be hidden)
+    this.blackHelmetGroup = new THREE.Group();
     const helmetMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.2 });
     const helmet = new THREE.Mesh(
       new THREE.SphereGeometry(0.34, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.45),
       helmetMat
     );
     helmet.position.y = 1.46;
-    headGroup.add(helmet);
+    this.blackHelmetGroup.add(helmet);
 
     // Helmet side coverage — ear guards
     const rimMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
@@ -901,22 +903,23 @@ export class Player {
       );
       earGuard.position.set(side * 0.28, 1.38, 0);
       earGuard.rotation.z = side * -0.3;
-      headGroup.add(earGuard);
+      this.blackHelmetGroup.add(earGuard);
     }
 
     // Helmet rim
     const rim = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.02, 8, 20), rimMat);
     rim.position.set(0, 1.39, 0);
     rim.rotation.x = Math.PI / 2;
-    headGroup.add(rim);
+    this.blackHelmetGroup.add(rim);
 
     // Vent slots on top
     const ventMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
     for (let i = -1; i <= 1; i++) {
       const vent = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.01, 0.12), ventMat);
       vent.position.set(i * 0.08, 1.72, 0);
-      headGroup.add(vent);
+      this.blackHelmetGroup.add(vent);
     }
+    headGroup.add(this.blackHelmetGroup);
 
     // Hair peeking out from under helmet — bangs at forehead
     const bangs = new THREE.Mesh(
@@ -1134,6 +1137,12 @@ export class Player {
     }
   }
 
+  setBlackHelmetVisible(visible: boolean) {
+    if (this.blackHelmetGroup) {
+      this.blackHelmetGroup.visible = visible;
+    }
+  }
+
   setMetalMode(active: boolean) {
     this.isMetalMode = active;
     const targetColor = new THREE.Color(active ? this.metalColor : this.outfitColor);
@@ -1220,6 +1229,7 @@ export class Player {
 
   handleInput(input: PlayerInput) {
     const inBobsled = this.currentVehicle === 'bobsled';
+    const noJump = inBobsled || this.currentVehicle === 'canoe';
 
     if (input.left && this.targetLane < 1) {
       const nextLane = this.targetLane + 1;
@@ -1246,7 +1256,7 @@ export class Player {
         this.targetLane = nextLane;
       }
     }
-    const canJump = !inBobsled || this.game.isSnowmobile;
+    const canJump = !noJump || this.game.isSnowmobile;
     if (input.jump && !this.isJumping && canJump) {
       this.isJumping = true;
       this.landSoundPlayed = false;

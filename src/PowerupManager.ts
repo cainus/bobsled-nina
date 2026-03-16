@@ -171,8 +171,9 @@ export class PowerupManager {
     const laneY = this.game.laneHeightMap.getHeight(lane, 100);
     let mesh: THREE.Group;
     if (type === 'bobsled') {
-      const isAutumn = this.game.seasonManager.season === 'autumn';
-      mesh = isAutumn ? this.createMotorbikePowerupMesh()
+      const season = this.game.seasonManager.season;
+      mesh = season === 'spring' ? this.createCanoePowerupMesh()
+        : season === 'autumn' ? this.createMotorbikePowerupMesh()
         : this.game.score >= 6000 ? this.createSnowmobileMesh()
         : this.createPowerupMesh();
     } else if (type === 'metal') {
@@ -305,8 +306,10 @@ export class PowerupManager {
     visor.rotation.x = -0.5;
     this.helmetMesh.add(visor);
 
-    this.helmetMesh.position.set(0, 1.65, 0);
-    this.game.player.group.add(this.helmetMesh);
+    this.helmetMesh.scale.setScalar(1.15);
+    this.helmetMesh.position.set(0, 1.46, 0);
+    this.game.player.character.add(this.helmetMesh);
+    this.game.player.setBlackHelmetVisible(false);
     const el = document.getElementById('shield-display')!;
     el.style.display = 'block';
     el.textContent = '⛑️ x3';
@@ -316,9 +319,10 @@ export class PowerupManager {
     this.helmetMode = false;
     this.helmetBouncesLeft = 0;
     if (this.helmetMesh) {
-      this.game.player.group.remove(this.helmetMesh);
+      this.game.player.character.remove(this.helmetMesh);
       this.helmetMesh = null;
     }
+    this.game.player.setBlackHelmetVisible(true);
     document.getElementById('shield-display')!.style.display = 'none';
   }
 
@@ -571,6 +575,46 @@ export class PowerupManager {
     return group;
   }
 
+  private createCanoePowerupMesh(): THREE.Group {
+    const group = new THREE.Group();
+    const hullMat = new THREE.MeshStandardMaterial({
+      color: 0x2e7d32,
+      emissive: 0x1b5e20,
+      emissiveIntensity: 0.4,
+    });
+
+    // Hull
+    const hull = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.8, 6, 12), hullMat);
+    hull.rotation.x = Math.PI / 2;
+    hull.scale.set(1, 1, 0.5);
+    hull.position.y = 0.1;
+    hull.castShadow = true;
+    group.add(hull);
+
+    // Pointed tips
+    for (const z of [1.2, -1.0]) {
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.4, 8), hullMat);
+      tip.rotation.x = z > 0 ? -Math.PI / 2 : Math.PI / 2;
+      tip.position.set(0, 0.1, z);
+      group.add(tip);
+    }
+
+    // Golden shield gem
+    const shieldMat = new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.6,
+      metalness: 0.8,
+      roughness: 0.1,
+    });
+    const shield = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), shieldMat);
+    shield.position.y = 1.0;
+    group.add(shield);
+
+    group.scale.setScalar(0.8);
+    return group;
+  }
+
   private createMotorbikePowerupMesh(): THREE.Group {
     const group = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({
@@ -783,9 +827,10 @@ export class PowerupManager {
     this.helmetMode = false;
     this.helmetBouncesLeft = 0;
     if (this.helmetMesh) {
-      this.game.player.group.remove(this.helmetMesh);
+      this.game.player.character.remove(this.helmetMesh);
       this.helmetMesh = null;
     }
+    this.game.player.setBlackHelmetVisible(true);
     this.nextBigJumpScore = 2000;
     if (this.bigRamp) {
       this.game.scene.remove(this.bigRamp);
