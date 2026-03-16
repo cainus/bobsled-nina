@@ -49,10 +49,19 @@ document.getElementById('restart-btn')!.addEventListener('click', () => {
   controlsHint.style.display = '';
 });
 
-// Pause menu
+// Pause menu and screenshot
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && game.running) {
     game.pause();
+  }
+  if (e.key === 'p' || e.key === 'P') {
+    // Render one frame to ensure canvas has content, then save
+    game.renderer.render(game.scene, game.camera);
+    const dataUrl = game.renderer.domElement.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `nanas-run-${Date.now()}.png`;
+    link.href = dataUrl;
+    link.click();
   }
 });
 

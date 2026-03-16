@@ -89,10 +89,11 @@ export class PowerupManager {
 
   updateBigRamp(dt: number) {
     if (this.game.score >= this.nextBigJumpScore && !this.bigRampActive) {
-      const isSpring = this.game.seasonManager.season === 'spring';
-      const interval = isSpring ? 300 + Math.floor(Math.random() * 200) : 1800 + Math.floor(Math.random() * 400);
+      const interval = 1800 + Math.floor(Math.random() * 400);
       this.nextBigJumpScore = this.game.score + interval;
-      this.spawnBigRamp();
+      if (this.game.seasonManager.season !== 'spring') {
+        this.spawnBigRamp();
+      }
     }
     if (this.bigRamp) {
       this.bigRamp.position.z -= this.game.speed * dt;
@@ -526,7 +527,8 @@ export class PowerupManager {
     lip.receiveShadow = true;
     group.add(lip);
 
-    group.position.set(0, 0, 100);
+    const groundY = this.game.laneHeightMap.getHeight(0, 100);
+    group.position.set(0, groundY, 100);
     this.game.scene.add(group);
     this.bigRamp = group;
     this.bigRampActive = true;

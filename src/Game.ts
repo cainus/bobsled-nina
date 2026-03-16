@@ -35,6 +35,7 @@ export class Game {
   score = 0;
   coins = 0;
   speed = 0;
+  private _baseSpeed = 0;
   readonly baseSpeed = 25;
   readonly maxSpeed = 55;
   readonly acceleration = 0.3;
@@ -340,6 +341,7 @@ export class Game {
     this.cameraCurrentY = 10;
     this.cameraLookDownOffset = 0;
     this.coins = 0;
+    this._baseSpeed = this.baseSpeed;
     this.speed = this.baseSpeed;
 
     // Apply season before rebuilding track so chunks match
@@ -426,10 +428,9 @@ export class Game {
 
     // Increase speed over time
     const steepnessBoost = steepness * 12;
-    let modeBoost = 0;
-    if (this.metalMode) modeBoost = this.maxSpeed * 1.0;
-    if (this.isSnowmobile) modeBoost = Math.max(modeBoost, this.maxSpeed * 1.0);
-    this.speed = Math.min(this.speed + this.acceleration * dt, this.maxSpeed + steepnessBoost + modeBoost);
+    const snowmobileBoost = this.isSnowmobile ? this.maxSpeed * 1.0 : 0;
+    this._baseSpeed = Math.min(this._baseSpeed + this.acceleration * dt, this.maxSpeed + steepnessBoost + snowmobileBoost);
+    this.speed = this.metalMode ? this._baseSpeed * 1.5 : this._baseSpeed;
 
     // Process input
     const input = this.inputManager.consume();

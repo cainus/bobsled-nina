@@ -161,8 +161,77 @@ export class TrackManager {
           startY: sY + baseY,
           endY: sY + baseY,
         });
+      } else if (season === 'spring') {
+        // Spring: two ramps per chunk for more frequent height changes
+        const ramp1Start = CHUNK_LENGTH * 0.05;
+        const ramp1End = ramp1Start + RAMP_LENGTH;
+        const midCandidates = HEIGHTS.filter(h => h !== eY);
+        const mY = midCandidates[Math.floor(Math.random() * midCandidates.length)];
+        const ramp2Start = CHUNK_LENGTH * 0.55;
+        const ramp2End = ramp2Start + RAMP_LENGTH;
+        const flatBetween = ramp2Start - ramp1End;
+        const flatAfter = CHUNK_LENGTH - ramp2End;
+
+        // Flat before first ramp
+        if (ramp1Start > 0) {
+          const f = new THREE.Mesh(new THREE.PlaneGeometry(laneW - 0.15, ramp1Start), laneMat);
+          f.rotation.x = -Math.PI / 2;
+          f.position.set(laneX, sY + baseY, ramp1Start / 2);
+          f.receiveShadow = true;
+          chunk.add(f);
+          if (sY > 0) this.addLaneSupportWall(chunk, laneX, sY, 0, ramp1Start, baseY);
+        }
+
+        // First ramp: sY -> eY
+        chunk.add(this.createRamp(laneX, laneW - 0.15, sY + baseY, eY + baseY, ramp1Start, RAMP_LENGTH));
+
+        // Flat between ramps
+        const fb = new THREE.Mesh(new THREE.PlaneGeometry(laneW - 0.15, flatBetween), laneMat);
+        fb.rotation.x = -Math.PI / 2;
+        fb.position.set(laneX, eY + baseY, ramp1End + flatBetween / 2);
+        fb.receiveShadow = true;
+        chunk.add(fb);
+        if (eY > 0) this.addLaneSupportWall(chunk, laneX, eY, ramp1End, flatBetween, baseY);
+
+        // Second ramp: eY -> mY
+        chunk.add(this.createRamp(laneX, laneW - 0.15, eY + baseY, mY + baseY, ramp2Start, RAMP_LENGTH));
+
+        // Flat after second ramp
+        if (flatAfter > 0) {
+          const fa = new THREE.Mesh(new THREE.PlaneGeometry(laneW - 0.15, flatAfter), laneMat);
+          fa.rotation.x = -Math.PI / 2;
+          fa.position.set(laneX, mY + baseY, ramp2End + flatAfter / 2);
+          fa.receiveShadow = true;
+          chunk.add(fa);
+          if (mY > 0) this.addLaneSupportWall(chunk, laneX, mY, ramp2End, flatAfter, baseY);
+        }
+
+        // Foam on flat sections
+        const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+        for (let fi = 0; fi < 3; fi++) {
+          const fw = 0.1 + Math.random() * 0.3;
+          const fl = 1.5 + Math.random() * 3;
+          const foam = new THREE.Mesh(new THREE.PlaneGeometry(fw, fl), foamMat);
+          foam.rotation.x = -Math.PI / 2;
+          foam.position.set(
+            laneX + (Math.random() - 0.5) * (laneW - 0.5),
+            eY + baseY + 0.02,
+            ramp1End + Math.random() * flatBetween
+          );
+          chunk.add(foam);
+        }
+
+        // Height map segments
+        this.game.laneHeightMap.add({ lane: laneIndex, startZ: this.nextChunkZ, endZ: this.nextChunkZ + ramp1Start, startY: sY + baseY, endY: sY + baseY });
+        this.game.laneHeightMap.add({ lane: laneIndex, startZ: this.nextChunkZ + ramp1Start, endZ: this.nextChunkZ + ramp1End, startY: sY + baseY, endY: eY + baseY });
+        this.game.laneHeightMap.add({ lane: laneIndex, startZ: this.nextChunkZ + ramp1End, endZ: this.nextChunkZ + ramp2Start, startY: eY + baseY, endY: eY + baseY });
+        this.game.laneHeightMap.add({ lane: laneIndex, startZ: this.nextChunkZ + ramp2Start, endZ: this.nextChunkZ + ramp2End, startY: eY + baseY, endY: mY + baseY });
+        this.game.laneHeightMap.add({ lane: laneIndex, startZ: this.nextChunkZ + ramp2End, endZ: this.nextChunkZ + CHUNK_LENGTH, startY: mY + baseY, endY: mY + baseY });
+
+        // Update endHeights to mY so next chunk starts from there
+        endHeights[li] = mY;
       } else {
-        const rampStart = season === 'spring' ? CHUNK_LENGTH * 0.1 : CHUNK_LENGTH * 0.3;
+        const rampStart = CHUNK_LENGTH * 0.3;
         const rampEnd = rampStart + RAMP_LENGTH;
         const flatAfter = CHUNK_LENGTH - rampEnd;
 
@@ -252,7 +321,7 @@ export class TrackManager {
     const chunk = new THREE.Group();
     chunk.position.z = this.nextChunkZ;
 
-    const riseAmount = Math.min(-this.currentBaseY, WATERFALL_DROP);
+    const riseAmount = -this.currentBaseY;
     const baseY = this.currentBaseY;
     const targetBaseY = baseY + riseAmount;
 
@@ -284,15 +353,24 @@ export class TrackManager {
 
     // Side walls
     const wallMat2 = new THREE.MeshStandardMaterial({ color: wallColor });
-    const wallH = 2.5;
+    const wallH = 2.5 + riseAmount;
     const wallGeo = new THREE.BoxGeometry(0.6, wallH, CHUNK_LENGTH);
     for (const side of [-1, 1]) {
       const wallX = side * (trackWidth / 2 + 0.3);
       const wall = new THREE.Mesh(wallGeo, wallMat2);
-      wall.position.set(wallX, baseY + riseAmount / 2 + 1.0, CHUNK_LENGTH / 2);
+      wall.position.set(wallX, baseY + wallH / 2, CHUNK_LENGTH / 2);
       wall.castShadow = true;
       wall.receiveShadow = true;
       chunk.add(wall);
+    }
+
+    // Add season-appropriate side decorations
+    if (season === 'summer') {
+      this.addSummerSides(chunk, trackWidth);
+    } else if (season === 'autumn') {
+      this.addAutumnSides(chunk, trackWidth);
+    } else {
+      this.addWinterSides(chunk, trackWidth);
     }
 
     this.currentBaseY = targetBaseY;
@@ -309,8 +387,8 @@ export class TrackManager {
   }
 
   private shouldSpawnWaterfall(): boolean {
-    const minChunks = 6;
-    const maxChunks = 10;
+    const minChunks = 24;
+    const maxChunks = 40;
     if (this.chunksSinceLastWaterfall < minChunks) return false;
     if (this.chunksSinceLastWaterfall >= maxChunks) return true;
     return Math.random() < 0.5;

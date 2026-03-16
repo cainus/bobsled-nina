@@ -195,9 +195,10 @@ export class EnvironmentManager {
   private spawnBear() {
     const bear = this.createBear();
     const side = Math.random() > 0.5 ? 1 : -1;
+    const groundY = this.game.laneHeightMap.getHeight(0, 100);
     bear.position.set(
       side * (8 + Math.random() * 5),
-      0,
+      groundY,
       100
     );
     bear.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
