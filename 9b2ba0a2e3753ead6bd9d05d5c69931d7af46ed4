@@ -1,0 +1,31 @@
+src/Game.ts
+  ed24b2cc852edc7c 345
+src/ObstacleManager.ts
+  ed24b2cc852edc7c 736-737
+src/Player.ts
+  ed24b2cc852edc7c 28-29,42,59,69,102-104,655-697,1040,1102-1103,1323,1351,1359-1365,1403-1412,1414-1418
+src/CoinManager.ts
+  ed24b2cc852edc7c 149,157-161,163-172,231-232
+src/TrackManager.ts
+  ed24b2cc852edc7c 475,477-482,484,488-489,639,642
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "9b2ba0a2e3753ead6bd9d05d5c69931d7af46ed4",
+  "prompts": {
+    "ed24b2cc852edc7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f080f1a-ca6f-486e-9ae8-fd45cc467024",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 118,
+      "total_deletions": 60,
+      "accepted_lines": 111,
+      "overriden_lines": 0
+    }
+  }
+}
