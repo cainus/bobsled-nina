@@ -28,9 +28,6 @@ export class PowerupManager {
   nextBigJumpScore = 2000;
   bigRamp: THREE.Group | null = null;
   bigRampActive = false;
-  private waterfallActive = false;
-  private springRampCount = 0;
-
   constructor(game: Game) {
     this.game = game;
   }
@@ -95,28 +92,23 @@ export class PowerupManager {
       const isSpring = this.game.seasonManager.season === 'spring';
       const interval = isSpring ? 300 + Math.floor(Math.random() * 200) : 1800 + Math.floor(Math.random() * 400);
       this.nextBigJumpScore = this.game.score + interval;
-      if (isSpring) {
-        this.spawnWaterfall();
-      } else {
-        this.spawnBigRamp();
-      }
+      this.spawnBigRamp();
     }
     if (this.bigRamp) {
       this.bigRamp.position.z -= this.game.speed * dt;
-      if (this.bigRampActive && this.bigRamp.position.z < 1 && !this.game.player.isJumping) {
-        if (this.waterfallActive) {
-          this.game.player.waterfallDrop();
-        } else {
+
+      if (this.bigRampActive && this.bigRamp.position.z < 1) {
+        if (!this.game.player.isJumping) {
           this.game.player.bigLaunch();
         }
-        this.bigRampActive = false;
-        this.waterfallActive = false;
+        if (!this.game.player.isJumping) {
+          this.bigRampActive = false;
+        }
       }
       if (this.bigRamp.position.z < -20) {
         this.game.scene.remove(this.bigRamp);
         this.bigRamp = null;
         this.bigRampActive = false;
-        this.waterfallActive = false;
       }
     }
   }
@@ -536,82 +528,6 @@ export class PowerupManager {
     this.bigRampActive = true;
   }
 
-  private spawnWaterfall() {
-    const group = new THREE.Group();
-    const trackWidth = this.game.laneWidth * 3 + 2;
-    const dropHeight = 8;
-
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
-    const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x1a7799, metalness: 0.4, roughness: 0.15,
-      transparent: true, opacity: 0.75,
-    });
-    const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
-
-    // Flat approach (water surface at track level leading to the edge)
-    const approachGeo = new THREE.BoxGeometry(trackWidth, 0.2, 8);
-    const approach = new THREE.Mesh(approachGeo, waterMat);
-    approach.position.set(0, 0.1, 8);
-    group.add(approach);
-
-    // The cliff edge — rocky lip
-    const lipGeo = new THREE.BoxGeometry(trackWidth + 1, 0.5, 1.5);
-    const lip = new THREE.Mesh(lipGeo, rockMat);
-    lip.position.set(0, 0.2, 4);
-    lip.castShadow = true;
-    group.add(lip);
-
-    // Vertical cliff face with cascading water
-    const cliffGeo = new THREE.BoxGeometry(trackWidth + 1, dropHeight, 0.8);
-    const cliff = new THREE.Mesh(cliffGeo, rockMat);
-    cliff.position.set(0, -dropHeight / 2 + 0.2, 3.5);
-    cliff.castShadow = true;
-    group.add(cliff);
-
-    // Cascading water streaks on the cliff face
-    for (let i = 0; i < 15; i++) {
-      const fw = 0.2 + Math.random() * 0.6;
-      const fh = dropHeight * (0.4 + Math.random() * 0.6);
-      const foam = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), foamMat);
-      foam.position.set(
-        (Math.random() - 0.5) * (trackWidth - 1),
-        -dropHeight / 2 + fh / 2 + Math.random(),
-        3.1
-      );
-      group.add(foam);
-    }
-
-    // Rocky walls on sides of the falls
-    for (const side of [-1, 1]) {
-      const sideWall = new THREE.Mesh(new THREE.BoxGeometry(1.5, dropHeight + 2, 4), rockMat);
-      sideWall.position.set(side * (trackWidth / 2 + 1), -dropHeight / 2 + 1, 4);
-      sideWall.castShadow = true;
-      group.add(sideWall);
-    }
-
-    // Mist/spray at the base
-    const mistMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
-    for (let i = 0; i < 8; i++) {
-      const mist = new THREE.Mesh(new THREE.SphereGeometry(1.5 + Math.random() * 1.5, 6, 4), mistMat);
-      mist.position.set(
-        (Math.random() - 0.5) * trackWidth * 0.5,
-        -dropHeight + 1 + Math.random() * 2,
-        2 + Math.random() * 3
-      );
-      mist.scale.set(1, 0.4, 1);
-      group.add(mist);
-    }
-
-    // Suppress obstacles after waterfall landing
-    this.game.obstacleManager.spawnTimer = -5;
-
-    group.position.set(0, 0, 100);
-    this.game.scene.add(group);
-    this.bigRamp = group;
-    this.bigRampActive = true;
-    this.waterfallActive = true;
-  }
-
   private createPowerupMesh(): THREE.Group {
     const group = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({
@@ -876,7 +792,6 @@ export class PowerupManager {
       this.bigRamp = null;
     }
     this.bigRampActive = false;
-    this.springRampCount = 0;
     this.game.soundManager.stopThrash();
     this.game.soundManager.stopMotor();
     document.getElementById('shield-display')!.style.display = 'none';

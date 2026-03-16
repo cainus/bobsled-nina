@@ -397,7 +397,7 @@ export class Game {
     this.environmentManager.updateSteepness(dt);
     const steepness = this.environmentManager.steepness;
 
-    // Update camera tilt based on steepness
+    // Update camera
     const camY = 10 + steepness * 4;
     const lookY = 2 - steepness * 4;
     this.camera.position.y = camY;

@@ -44,6 +44,7 @@ export class Player {
   private readonly outfitColor = 0x2196f3;
   private readonly metalColor = 0x111111;
   private crankGroup: THREE.Group | null = null;
+  private paddleGroup: THREE.Group | null = null;
   private leftLeg: THREE.Group | null = null;
   private rightLeg: THREE.Group | null = null;
 
@@ -70,6 +71,7 @@ export class Player {
     this.vehicle = new THREE.Group();
 
     this.crankGroup = null;
+    this.paddleGroup = null;
 
     switch (type) {
       case 'bobsled':
@@ -570,25 +572,25 @@ export class Player {
     stern.position.set(0, 0.05, -1.2);
     this.vehicle.add(stern);
 
-    // Paddle — shaft stored across the front deck
+    // Paddle — in a group for animation
+    this.paddleGroup = new THREE.Group();
+    this.paddleGroup.position.set(0, 0.3, 0.2);
     const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.02, 0.02, 1.6, 6),
+      new THREE.CylinderGeometry(0.02, 0.02, 2.2, 6),
       paddleMat
     );
-    shaft.position.set(0, 0.22, 0.6);
     shaft.rotation.z = Math.PI / 2;
-    this.vehicle.add(shaft);
-
-    // Paddle blades on each end
-    for (const side of [-0.8, 0.8]) {
+    this.paddleGroup.add(shaft);
+    for (const side of [-1.1, 1.1]) {
       const blade = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12, 0.02, 0.3),
+        new THREE.BoxGeometry(0.14, 0.02, 0.35),
         bladeMat
       );
-      blade.position.set(side, 0.22, 0.6);
+      blade.position.set(side, 0, 0);
       blade.rotation.y = side > 0 ? 0.3 : -0.3;
-      this.vehicle.add(blade);
+      this.paddleGroup.add(blade);
     }
+    this.vehicle.add(this.paddleGroup);
 
     // Decorative stripe along hull
     const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffee58 });
@@ -638,18 +640,20 @@ export class Player {
     interior.position.set(0, 0.02, 0);
     this.vehicle.add(interior);
 
-    // Gold paddle
+    // Gold paddle — in a group for animation
     const shaftMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6 });
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.6, 6), shaftMat);
-    shaft.position.set(0, 0.22, 0.6);
+    this.paddleGroup = new THREE.Group();
+    this.paddleGroup.position.set(0, 0.3, 0.2);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.2, 6), shaftMat);
     shaft.rotation.z = Math.PI / 2;
-    this.vehicle.add(shaft);
+    this.paddleGroup.add(shaft);
     for (const side of [-0.8, 0.8]) {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.3), bowMat);
-      blade.position.set(side, 0.22, 0.6);
+      blade.position.set(side, 0, 0);
       blade.rotation.y = side > 0 ? 0.3 : -0.3;
-      this.vehicle.add(blade);
+      this.paddleGroup.add(blade);
     }
+    this.vehicle.add(this.paddleGroup);
   }
 
   private buildCanoeParts() {
@@ -1130,14 +1134,6 @@ export class Player {
     }
   }
 
-  waterfallDrop() {
-    this.isJumping = true;
-    this.landSoundPlayed = false;
-    // Strong downward velocity — feels like dropping off a cliff
-    this.jumpVelocity = -15;
-    this.game.soundManager.playSplash();
-  }
-
   setMetalMode(active: boolean) {
     this.isMetalMode = active;
     const targetColor = new THREE.Color(active ? this.metalColor : this.outfitColor);
@@ -1388,6 +1384,17 @@ export class Player {
         this.character.scale.copy(this.normalCharacterScale);
         this.character.position.y = 0.15;
       }
+    }
+
+    // Animate kayak paddle — alternating side-to-side stroke
+    if (this.paddleGroup && !this.isJumping) {
+      const paddleSpeed = 3;
+      const t = Date.now() * 0.001 * paddleSpeed;
+      // Rock side to side
+      this.paddleGroup.rotation.z = Math.sin(t) * 0.5;
+      // Dip the paddle on each side
+      this.paddleGroup.rotation.x = Math.sin(t * 2) * 0.15;
+      this.paddleGroup.position.y = 0.3 + Math.sin(t) * 0.05;
     }
 
     // Animate mountain bike pedals and legs
