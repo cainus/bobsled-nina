@@ -21,6 +21,7 @@ export class TrackManager {
   // Waterfall system — cumulative world drop in Spring
   currentBaseY = 0;
   private chunksSinceLastWaterfall = 0;
+  private waterfallZPositions: number[] = [];
 
   // Shared materials (updated per season)
   private wallMat: THREE.MeshStandardMaterial;
@@ -308,8 +309,8 @@ export class TrackManager {
   }
 
   private shouldSpawnWaterfall(): boolean {
-    const minChunks = 3;
-    const maxChunks = 5;
+    const minChunks = 6;
+    const maxChunks = 10;
     if (this.chunksSinceLastWaterfall < minChunks) return false;
     if (this.chunksSinceLastWaterfall >= maxChunks) return true;
     return Math.random() < 0.5;
@@ -514,6 +515,9 @@ export class TrackManager {
     this.currentBaseY -= dropAmount;
     this.laneEndHeights = [0, 0, 0];
     this.chunksSinceLastWaterfall = 0;
+
+    // Record waterfall position (the drop edge in world Z)
+    this.waterfallZPositions.push(this.nextChunkZ + dropStartZ);
 
     // Suppress obstacles after waterfall
     if (this.game.obstacleManager) {
@@ -1241,8 +1245,18 @@ export class TrackManager {
     }
     this.nextChunkZ -= moveAmount;
 
-    // Scroll height map
+    // Scroll height map and waterfall positions
     this.game.laneHeightMap.scroll(moveAmount);
+    for (let i = 0; i < this.waterfallZPositions.length; i++) {
+      this.waterfallZPositions[i] -= moveAmount;
+    }
+    this.waterfallZPositions = this.waterfallZPositions.filter(z => z > -80);
+
+    // Update waterfall sound based on nearest waterfall
+    const nearest = this.waterfallZPositions.length > 0
+      ? this.waterfallZPositions.reduce((a, b) => Math.abs(a) < Math.abs(b) ? a : b)
+      : null;
+    this.game.soundManager.updateWaterfallSound(nearest);
 
     // Remove old chunks
     while (this.chunks.length > 0 && this.chunks[0].position.z < -CHUNK_LENGTH - 20) {
@@ -1275,6 +1289,7 @@ export class TrackManager {
     this.laneEndHeights = [0, 0, 0];
     this.currentBaseY = 0;
     this.chunksSinceLastWaterfall = 0;
+    this.waterfallZPositions = [];
     this.spawnInitialChunks();
   }
 }

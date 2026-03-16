@@ -21,6 +21,11 @@ export class SoundManager {
   private gruntBuffers: AudioBuffer[] = [];
   private gruntsLoaded = false;
 
+  // Waterfall ambient sound
+  private waterfallSource: AudioBufferSourceNode | null = null;
+  private waterfallGain: GainNode | null = null;
+  private waterfallActive = false;
+
   constructor(game: Game) {
     this.game = game;
   }
@@ -449,10 +454,69 @@ export class SoundManager {
     }
   }
 
+  updateWaterfallSound(nearestWaterfallZ: number | null) {
+    if (nearestWaterfallZ === null) {
+      this.stopWaterfall();
+      return;
+    }
+
+    // Start looping waterfall noise if not active
+    if (!this.waterfallActive) {
+      const ctx = this.ensureContext();
+      const buffer = this.createNoiseBuffer(3);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+
+      // Low-pass filtered noise for deep roar
+      const lpFilter = ctx.createBiquadFilter();
+      lpFilter.type = 'lowpass';
+      lpFilter.frequency.value = 600;
+      lpFilter.Q.value = 0.5;
+
+      // Add a second bandpass for some mid-range body
+      const bpFilter = ctx.createBiquadFilter();
+      bpFilter.type = 'bandpass';
+      bpFilter.frequency.value = 300;
+      bpFilter.Q.value = 0.3;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+
+      source.connect(lpFilter);
+      lpFilter.connect(bpFilter);
+      bpFilter.connect(gain);
+      gain.connect(ctx.destination);
+      source.start();
+
+      this.waterfallSource = source;
+      this.waterfallGain = gain;
+      this.waterfallActive = true;
+    }
+
+    // Volume based on distance — loud when close, fades over ~80 units
+    if (this.waterfallGain) {
+      const dist = Math.abs(nearestWaterfallZ);
+      const volume = Math.max(0, 1 - dist / 80) ** 1.5 * 0.5;
+      this.waterfallGain.gain.value = volume;
+    }
+  }
+
+  private stopWaterfall() {
+    if (this.waterfallSource) {
+      this.waterfallSource.stop();
+      this.waterfallSource.disconnect();
+      this.waterfallSource = null;
+      this.waterfallGain = null;
+    }
+    this.waterfallActive = false;
+  }
+
   reset() {
     this.stopSliding();
     this.stopThrash();
     this.stopMotor();
+    this.stopWaterfall();
     if (this.windSource) {
       this.windSource.stop();
       this.windSource.disconnect();
