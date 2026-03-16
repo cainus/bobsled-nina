@@ -443,18 +443,8 @@ export class TrackManager {
       });
     }
 
-    // Cliff lip — rocky edge spanning full track width
-    const lipMat = new THREE.MeshStandardMaterial({ color: 0x5a5a4a, roughness: 0.95 });
-    const lip = new THREE.Mesh(
-      new THREE.BoxGeometry(trackWidth + 2, 1.5, 1.2),
-      lipMat
-    );
-    lip.position.set(0, baseY + 0.3, dropStartZ - 0.3);
-    lip.castShadow = true;
-    chunk.add(lip);
-
     // Vertical rock face under the cliff
-    const rockFaceMat = new THREE.MeshStandardMaterial({ color: 0x4a4a3a, roughness: 0.9 });
+    const rockFaceMat = new THREE.MeshStandardMaterial({ color: 0x2a6088, roughness: 0.4, metalness: 0.3 });
     const rockFace = new THREE.Mesh(
       new THREE.BoxGeometry(trackWidth + 3, dropAmount, 1.5),
       rockFaceMat
