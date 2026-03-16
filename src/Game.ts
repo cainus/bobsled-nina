@@ -156,7 +156,7 @@ export class Game {
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
     this.groundMesh = new THREE.Mesh(groundGeo, groundMat);
     this.groundMesh.rotation.x = -Math.PI / 2;
-    this.groundMesh.position.y = -100;
+    this.groundMesh.position.y = -0.05;
     this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
 
@@ -418,7 +418,7 @@ export class Game {
 
     // Move background elements to follow waterfall drops
     const baseY = this.trackManager.currentBaseY;
-    this.groundMesh.position.y = baseY - 100;
+    this.groundMesh.position.y = baseY - 0.05;
     for (const m of this.mountainMeshes) {
       (m as any)._origY ??= m.position.y;
       m.position.y = (m as any)._origY + baseY;

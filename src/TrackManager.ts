@@ -71,6 +71,12 @@ export class TrackManager {
     const trackWidth = laneW * 3 + 2;
     const isFlatChunk = this.nextChunkZ < 40;
 
+    // When leaving spring, ramp the floor back up to y=0
+    if (season !== 'spring' && this.currentBaseY < 0) {
+      this.addRiseChunk(laneColors, wallColor, trackWidth, laneW, season);
+      return;
+    }
+
     // Check if this should be a waterfall chunk
     const isWaterfallChunk = season === 'spring' && !isFlatChunk && this.shouldSpawnWaterfall();
     if (isWaterfallChunk) {
@@ -236,6 +242,66 @@ export class TrackManager {
     }
 
     this.laneEndHeights = endHeights;
+    this.game.scene.add(chunk);
+    this.chunks.push(chunk);
+    this.nextChunkZ += CHUNK_LENGTH;
+  }
+
+  private addRiseChunk(laneColors: number[], wallColor: number, trackWidth: number, laneW: number, season: Season) {
+    const chunk = new THREE.Group();
+    chunk.position.z = this.nextChunkZ;
+
+    const riseAmount = Math.min(-this.currentBaseY, WATERFALL_DROP);
+    const baseY = this.currentBaseY;
+    const targetBaseY = baseY + riseAmount;
+
+    const isWater = season === 'summer';
+    const laneMat = new THREE.MeshStandardMaterial({
+      color: laneColors[1],
+      metalness: isWater ? 0.4 : 0.3,
+      roughness: isWater ? 0.15 : 0.2,
+      transparent: isWater,
+      opacity: isWater ? 0.85 : 1,
+    });
+
+    for (let li = 0; li < 3; li++) {
+      const laneIndex = li - 1;
+      const laneX = laneIndex * laneW;
+
+      // Ramp up from current baseY to targetBaseY over the full chunk
+      const rampGroup = this.createRamp(laneX, laneW - 0.15, baseY, targetBaseY, 0, CHUNK_LENGTH, true);
+      chunk.add(rampGroup);
+
+      this.game.laneHeightMap.add({
+        lane: laneIndex,
+        startZ: this.nextChunkZ,
+        endZ: this.nextChunkZ + CHUNK_LENGTH,
+        startY: baseY,
+        endY: targetBaseY,
+      });
+    }
+
+    // Side walls
+    const wallMat2 = new THREE.MeshStandardMaterial({ color: wallColor });
+    const wallH = 2.5;
+    const wallGeo = new THREE.BoxGeometry(0.6, wallH, CHUNK_LENGTH);
+    for (const side of [-1, 1]) {
+      const wallX = side * (trackWidth / 2 + 0.3);
+      const wall = new THREE.Mesh(wallGeo, wallMat2);
+      wall.position.set(wallX, baseY + riseAmount / 2 + 1.0, CHUNK_LENGTH / 2);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      chunk.add(wall);
+    }
+
+    this.currentBaseY = targetBaseY;
+    this.laneEndHeights = [0, 0, 0];
+
+    // Suppress obstacles during rise
+    if (this.game.obstacleManager) {
+      this.game.obstacleManager.spawnTimer = -2;
+    }
+
     this.game.scene.add(chunk);
     this.chunks.push(chunk);
     this.nextChunkZ += CHUNK_LENGTH;
