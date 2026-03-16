@@ -25,6 +25,12 @@ export class CoinManager {
     if (this.game.seasonManager.season === 'autumn') {
       return this.createMapleLeaf();
     }
+    if (this.game.seasonManager.season === 'summer') {
+      return this.createSeashellCollectible();
+    }
+    if (this.game.seasonManager.season === 'spring') {
+      return this.createWaterDrop();
+    }
 
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({
@@ -133,6 +139,79 @@ export class CoinManager {
     stem.position.set(0, -0.5, 0.015);
     group.add(stem);
 
+    return group;
+  }
+
+  private createWaterDrop(): THREE.Group {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x44aaff,
+      metalness: 0.3,
+      roughness: 0.1,
+      emissive: 0x2288dd,
+      emissiveIntensity: 0.4,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+    });
+
+    // Teardrop shape — wider at bottom, pointed at top
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0.35);   // top point
+    shape.bezierCurveTo(0.04, 0.28, 0.18, 0.1, 0.2, -0.05);
+    shape.bezierCurveTo(0.22, -0.18, 0.12, -0.32, 0, -0.35);
+    shape.bezierCurveTo(-0.12, -0.32, -0.22, -0.18, -0.2, -0.05);
+    shape.bezierCurveTo(-0.18, 0.1, -0.04, 0.28, 0, 0.35);
+
+    const geo = new THREE.ShapeGeometry(shape);
+    // Front face
+    const drop1 = new THREE.Mesh(geo, mat);
+    drop1.castShadow = true;
+    group.add(drop1);
+    // Back face
+    const drop2 = new THREE.Mesh(geo, mat);
+    drop2.rotation.y = Math.PI;
+    group.add(drop2);
+
+    return group;
+  }
+
+  private createSeashellCollectible(): THREE.Group {
+    const group = new THREE.Group();
+    const shellColors = [0xfce4b8, 0xf5d0a0, 0xecc8a0, 0xffe0c0];
+    const color = shellColors[Math.floor(Math.random() * shellColors.length)];
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.2,
+      roughness: 0.4,
+      emissive: color,
+      emissiveIntensity: 0.2,
+    });
+    const innerMat = new THREE.MeshStandardMaterial({ color: 0xffb6c1, emissive: 0xff8899, emissiveIntensity: 0.15 });
+
+    // Spiral shell body — cone tilted to look like a conch
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 10), mat);
+    cone.position.y = 0.1;
+    cone.rotation.z = 0.4;
+    cone.castShadow = true;
+    group.add(cone);
+
+    // Rounded opening
+    const opening = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), innerMat);
+    opening.position.set(-0.05, -0.05, 0.1);
+    opening.scale.set(1, 0.7, 0.5);
+    group.add(opening);
+
+    // Spiral ridges
+    for (let i = 0; i < 3; i++) {
+      const ridge = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i * 0.04, 0.02, 6, 10), mat);
+      ridge.position.set(0, 0.05 + i * 0.12, 0);
+      ridge.rotation.x = Math.PI / 2;
+      ridge.rotation.z = i * 0.3;
+      group.add(ridge);
+    }
+
+    group.scale.setScalar(1.3);
     return group;
   }
 

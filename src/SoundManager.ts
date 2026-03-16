@@ -162,6 +162,27 @@ export class SoundManager {
     osc.stop(now + 0.15);
   }
 
+  playSplash() {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // Short burst of filtered noise — bandpass at ~2000Hz for watery sound
+    const buffer = this.createNoiseBuffer(0.2);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2000;
+    filter.Q.value = 2;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(now);
+    source.stop(now + 0.15);
+  }
+
   playCollect() {
     const ctx = this.ensureContext();
     // Quick sparkly chime — two sine tones in rapid succession

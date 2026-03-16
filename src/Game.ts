@@ -446,12 +446,17 @@ export class Game {
 
     // Vehicle upgrades based on score (not in autumn — mountain bike stays)
     if (!this.powerupManager.bobsledShield && !this.snowboardMode) {
-      if (this.seasonManager.season === 'autumn') {
-        if (this.player.currentVehicle !== 'mountainBike' && this.player.currentVehicle !== 'bobsled') {
+      const season = this.seasonManager.season;
+      if (season === 'autumn') {
+        if (this.player.currentVehicle !== 'mountainBike' && this.player.currentVehicle !== 'bobsled' && this.player.currentVehicle !== 'motorbike') {
           this.player.switchVehicle('mountainBike');
         }
       } else if (this.score >= 1500) {
-        this.player.switchVehicle('rainbowSkis');
+        if (season === 'spring') {
+          this.player.switchVehicle('rainbowKayak');
+        } else {
+          this.player.switchVehicle('rainbowSkis');
+        }
       }
     }
 

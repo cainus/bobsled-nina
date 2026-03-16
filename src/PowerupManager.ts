@@ -28,6 +28,8 @@ export class PowerupManager {
   nextBigJumpScore = 2000;
   bigRamp: THREE.Group | null = null;
   bigRampActive = false;
+  private waterfallActive = false;
+  private springRampCount = 0;
 
   constructor(game: Game) {
     this.game = game;
@@ -44,7 +46,9 @@ export class PowerupManager {
         if (!isAutumn) types.push('bobsled');
         else types.push('bobsled'); // spawns motorbike mesh in autumn (handled in spawnPowerup)
       }
-      if (!this.snowboardMode && this.game.score >= this.nextSnowboardScore && !isAutumn) types.push('snowboard');
+      const season = this.game.seasonManager.season;
+      const noSnowboard = season === 'autumn' || season === 'spring' || season === 'summer';
+      if (!this.snowboardMode && this.game.score >= this.nextSnowboardScore && !noSnowboard) types.push('snowboard');
       if (!this.helmetMode) types.push('helmet');
       if (this.metalMode && types.includes('metal')) types.splice(types.indexOf('metal'), 1);
       if (types.length === 0) return;
@@ -89,18 +93,30 @@ export class PowerupManager {
   updateBigRamp(dt: number) {
     if (this.game.score >= this.nextBigJumpScore && !this.bigRampActive) {
       this.nextBigJumpScore = this.game.score + 1800 + Math.floor(Math.random() * 400);
-      this.spawnBigRamp();
+      const isSpring = this.game.seasonManager.season === 'spring';
+      if (isSpring && this.springRampCount < 2) {
+        this.spawnWaterfall();
+        this.springRampCount++;
+      } else {
+        this.spawnBigRamp();
+      }
     }
     if (this.bigRamp) {
       this.bigRamp.position.z -= this.game.speed * dt;
       if (this.bigRampActive && this.bigRamp.position.z < 1 && !this.game.player.isJumping) {
-        this.game.player.bigLaunch();
+        if (this.waterfallActive) {
+          this.game.player.waterfallDrop();
+        } else {
+          this.game.player.bigLaunch();
+        }
         this.bigRampActive = false;
+        this.waterfallActive = false;
       }
       if (this.bigRamp.position.z < -20) {
         this.game.scene.remove(this.bigRamp);
         this.bigRamp = null;
         this.bigRampActive = false;
+        this.waterfallActive = false;
       }
     }
   }
@@ -150,8 +166,11 @@ export class PowerupManager {
     return 'endGame';
   }
 
-  private getDefaultVehicle(): 'skis' | 'rainbowSkis' | 'mountainBike' {
-    if (this.game.seasonManager.season === 'autumn') return 'mountainBike';
+  private getDefaultVehicle(): 'skis' | 'rainbowSkis' | 'mountainBike' | 'kayak' | 'jetski' | 'rainbowKayak' {
+    const season = this.game.seasonManager.season;
+    if (season === 'autumn') return 'mountainBike';
+    if (season === 'spring') return this.game.score >= 1500 ? 'rainbowKayak' : 'kayak';
+    if (season === 'summer') return 'jetski';
     return this.game.score >= 1500 ? 'rainbowSkis' : 'skis';
   }
 
@@ -429,12 +448,22 @@ export class PowerupManager {
     const trackWidth = this.game.laneWidth * 3 + 2;
     const rampLength = 12;
     const rampHeight = 4;
+    const season = this.game.seasonManager.season;
+    const isAutumn = season === 'autumn';
+    const isSpring = season === 'spring';
 
     const slopeLen = Math.sqrt(rampLength * rampLength + rampHeight * rampHeight);
     const angle = Math.atan2(rampHeight, rampLength);
-    const isAutumn = this.game.seasonManager.season === 'autumn';
-    const rampColor = isAutumn ? 0x8B7355 : 0xbbeeFF;
-    const rampMat = new THREE.MeshStandardMaterial({ color: rampColor, metalness: 0.2, roughness: 0.3 });
+
+    const rampColor = isAutumn ? 0x8B7355 : isSpring ? 0x2288bb : 0xbbeeFF;
+    const rampMat = new THREE.MeshStandardMaterial({
+      color: rampColor,
+      metalness: isSpring ? 0.4 : 0.2,
+      roughness: isSpring ? 0.15 : 0.3,
+      transparent: isSpring,
+      opacity: isSpring ? 0.85 : 1,
+    });
+
     const rampGeo = new THREE.BoxGeometry(trackWidth - 0.5, 0.3, slopeLen);
     const ramp = new THREE.Mesh(rampGeo, rampMat);
     ramp.position.set(0, rampHeight / 2, rampLength / 2);
@@ -443,7 +472,8 @@ export class PowerupManager {
     ramp.receiveShadow = true;
     group.add(ramp);
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: isAutumn ? 0x7a6040 : 0xaaddee });
+    const wallColor = isAutumn ? 0x7a6040 : isSpring ? 0x66bbdd : 0xaaddee;
+    const wallMat = new THREE.MeshStandardMaterial({ color: wallColor });
     for (const side of [-1, 1]) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, slopeLen), wallMat);
       wall.position.set(side * (trackWidth / 2 - 0.1), rampHeight / 2, rampLength / 2);
@@ -452,7 +482,35 @@ export class PowerupManager {
       group.add(wall);
     }
 
-    const supportMat = new THREE.MeshStandardMaterial({ color: isAutumn ? 0x6b5535 : 0x99ccdd });
+    if (isSpring) {
+      // Wave foam on top of the ramp
+      const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+      for (let i = 0; i < 5; i++) {
+        const fw = 0.3 + Math.random() * 0.5;
+        const fl = 1.5 + Math.random() * 2;
+        const foam = new THREE.Mesh(new THREE.PlaneGeometry(fw, fl), foamMat);
+        foam.rotation.x = -angle - Math.PI / 2;
+        foam.position.set(
+          (Math.random() - 0.5) * (trackWidth - 2),
+          rampHeight / 2 + 0.2,
+          rampLength / 2 + (Math.random() - 0.5) * 4
+        );
+        group.add(foam);
+      }
+      // Curling wave crest at the top
+      const crestMat = new THREE.MeshStandardMaterial({ color: 0x44aadd, transparent: true, opacity: 0.7 });
+      const crest = new THREE.Mesh(
+        new THREE.TorusGeometry(1.5, 0.4, 8, 16, Math.PI),
+        crestMat
+      );
+      crest.position.set(0, rampHeight + 0.5, rampLength + 1);
+      crest.rotation.y = Math.PI / 2;
+      crest.scale.set(trackWidth / 4, 1, 1);
+      group.add(crest);
+    }
+
+    const supportColor = isAutumn ? 0x6b5535 : isSpring ? 0x1a6688 : 0x99ccdd;
+    const supportMat = new THREE.MeshStandardMaterial({ color: supportColor });
     for (let i = 0; i < 3; i++) {
       const t = (i + 1) / 4;
       const supportH = rampHeight * t;
@@ -472,6 +530,82 @@ export class PowerupManager {
     this.game.scene.add(group);
     this.bigRamp = group;
     this.bigRampActive = true;
+  }
+
+  private spawnWaterfall() {
+    const group = new THREE.Group();
+    const trackWidth = this.game.laneWidth * 3 + 2;
+    const dropHeight = 8;
+
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x1a7799, metalness: 0.4, roughness: 0.15,
+      transparent: true, opacity: 0.75,
+    });
+    const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+
+    // Flat approach (water surface at track level leading to the edge)
+    const approachGeo = new THREE.BoxGeometry(trackWidth, 0.2, 8);
+    const approach = new THREE.Mesh(approachGeo, waterMat);
+    approach.position.set(0, 0.1, 8);
+    group.add(approach);
+
+    // The cliff edge — rocky lip
+    const lipGeo = new THREE.BoxGeometry(trackWidth + 1, 0.5, 1.5);
+    const lip = new THREE.Mesh(lipGeo, rockMat);
+    lip.position.set(0, 0.2, 4);
+    lip.castShadow = true;
+    group.add(lip);
+
+    // Vertical cliff face with cascading water
+    const cliffGeo = new THREE.BoxGeometry(trackWidth + 1, dropHeight, 0.8);
+    const cliff = new THREE.Mesh(cliffGeo, rockMat);
+    cliff.position.set(0, -dropHeight / 2 + 0.2, 3.5);
+    cliff.castShadow = true;
+    group.add(cliff);
+
+    // Cascading water streaks on the cliff face
+    for (let i = 0; i < 15; i++) {
+      const fw = 0.2 + Math.random() * 0.6;
+      const fh = dropHeight * (0.4 + Math.random() * 0.6);
+      const foam = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), foamMat);
+      foam.position.set(
+        (Math.random() - 0.5) * (trackWidth - 1),
+        -dropHeight / 2 + fh / 2 + Math.random(),
+        3.1
+      );
+      group.add(foam);
+    }
+
+    // Rocky walls on sides of the falls
+    for (const side of [-1, 1]) {
+      const sideWall = new THREE.Mesh(new THREE.BoxGeometry(1.5, dropHeight + 2, 4), rockMat);
+      sideWall.position.set(side * (trackWidth / 2 + 1), -dropHeight / 2 + 1, 4);
+      sideWall.castShadow = true;
+      group.add(sideWall);
+    }
+
+    // Mist/spray at the base
+    const mistMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+    for (let i = 0; i < 8; i++) {
+      const mist = new THREE.Mesh(new THREE.SphereGeometry(1.5 + Math.random() * 1.5, 6, 4), mistMat);
+      mist.position.set(
+        (Math.random() - 0.5) * trackWidth * 0.5,
+        -dropHeight + 1 + Math.random() * 2,
+        2 + Math.random() * 3
+      );
+      mist.scale.set(1, 0.4, 1);
+      group.add(mist);
+    }
+
+    // Suppress obstacles after waterfall landing
+    this.game.obstacleManager.spawnTimer = -5;
+
+    group.position.set(0, 0, 100);
+    this.game.scene.add(group);
+    this.bigRamp = group;
+    this.bigRampActive = true;
+    this.waterfallActive = true;
   }
 
   private createPowerupMesh(): THREE.Group {
@@ -738,6 +872,7 @@ export class PowerupManager {
       this.bigRamp = null;
     }
     this.bigRampActive = false;
+    this.springRampCount = 0;
     this.game.soundManager.stopThrash();
     this.game.soundManager.stopMotor();
     document.getElementById('shield-display')!.style.display = 'none';

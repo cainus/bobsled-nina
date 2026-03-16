@@ -89,10 +89,13 @@ export class TrackManager {
       const sY = startHeights[li];
       const eY = endHeights[li];
 
+      const isWater = season === 'spring' || season === 'summer';
       const laneMat = new THREE.MeshStandardMaterial({
         color: laneColors[li],
-        metalness: 0.3,
-        roughness: 0.2,
+        metalness: isWater ? 0.4 : 0.3,
+        roughness: isWater ? 0.15 : 0.2,
+        transparent: isWater,
+        opacity: isWater ? 0.85 : 1,
       });
 
       if (sY === eY) {
@@ -102,6 +105,24 @@ export class TrackManager {
         mesh.position.set(laneX, sY, CHUNK_LENGTH / 2);
         mesh.receiveShadow = true;
         chunk.add(mesh);
+
+        // White foam streaks on spring water
+        if (season === 'spring') {
+          const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+          const foamCount = 2 + Math.floor(Math.random() * 3);
+          for (let fi = 0; fi < foamCount; fi++) {
+            const fw = 0.1 + Math.random() * 0.3;
+            const fl = 2 + Math.random() * 5;
+            const foam = new THREE.Mesh(new THREE.PlaneGeometry(fw, fl), foamMat);
+            foam.rotation.x = -Math.PI / 2;
+            foam.position.set(
+              laneX + (Math.random() - 0.5) * (laneW - 0.5),
+              sY + 0.02,
+              Math.random() * CHUNK_LENGTH
+            );
+            chunk.add(foam);
+          }
+        }
 
         if (sY > 0) {
           this.addLaneSupportWall(chunk, laneX, sY, 0, CHUNK_LENGTH);
@@ -168,13 +189,17 @@ export class TrackManager {
       }
     }
 
-    // Side walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: wallColor });
-    const wallGeo = new THREE.BoxGeometry(0.6, 2.5, CHUNK_LENGTH);
+    // Side walls — taller rocky canyon walls in spring
+    const isSpringWalls = season === 'spring';
+    const wallH = isSpringWalls ? 5.0 : 2.5;
+    const wallY = isSpringWalls ? 2.5 : 1.0;
+    const springRockMat = new THREE.MeshStandardMaterial({ color: 0x6a6a5a, roughness: 0.95 });
+    const wallMat2 = isSpringWalls ? springRockMat : new THREE.MeshStandardMaterial({ color: wallColor });
+    const wallGeo = new THREE.BoxGeometry(isSpringWalls ? 1.2 : 0.6, wallH, CHUNK_LENGTH);
     for (const side of [-1, 1]) {
-      const wallX = side * (trackWidth / 2 + 0.3);
-      const wall = new THREE.Mesh(wallGeo, wallMat);
-      wall.position.set(wallX, 1.0, CHUNK_LENGTH / 2);
+      const wallX = side * (trackWidth / 2 + (isSpringWalls ? 0.6 : 0.3));
+      const wall = new THREE.Mesh(wallGeo, wallMat2);
+      wall.position.set(wallX, wallY, CHUNK_LENGTH / 2);
       wall.castShadow = true;
       wall.receiveShadow = true;
       chunk.add(wall);
@@ -185,6 +210,8 @@ export class TrackManager {
       this.addSummerSides(chunk, trackWidth);
     } else if (season === 'autumn') {
       this.addAutumnSides(chunk, trackWidth);
+    } else if (season === 'spring') {
+      this.addSpringSides(chunk, trackWidth);
     } else {
       this.addWinterSides(chunk, trackWidth);
     }
@@ -266,13 +293,13 @@ export class TrackManager {
   }
 
   private addSummerSides(chunk: THREE.Group, trackWidth: number) {
-    // Water on both sides
+    // Ocean water on both sides — deeper blue, less transparent
     const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x2196f3,
-      metalness: 0.3,
-      roughness: 0.2,
+      color: 0x1565c0,
+      metalness: 0.4,
+      roughness: 0.15,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.88,
     });
     for (const side of [-1, 1]) {
       const waterGeo = new THREE.PlaneGeometry(30, CHUNK_LENGTH);
@@ -306,6 +333,32 @@ export class TrackManager {
           Math.random() * CHUNK_LENGTH
         );
         chunk.add(palm);
+      }
+    }
+
+    // Beach umbrellas on sand banks
+    for (const side of [-1, 1]) {
+      if (Math.random() > 0.4) {
+        const umbrella = this.createBeachUmbrella();
+        umbrella.position.set(
+          side * (trackWidth / 2 + 1.5 + Math.random() * 1.5),
+          2.0,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(umbrella);
+      }
+    }
+
+    // Buoys in the water
+    for (const side of [-1, 1]) {
+      if (Math.random() > 0.5) {
+        const buoy = this.createBuoy();
+        buoy.position.set(
+          side * (trackWidth / 2 + 6 + Math.random() * 10),
+          0.0,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(buoy);
       }
     }
   }
@@ -376,6 +429,170 @@ export class TrackManager {
     }
   }
 
+  private addSpringSides(chunk: THREE.Group, trackWidth: number) {
+    // High rocky embankments — raised terrain above the water
+    const embankMat = new THREE.MeshStandardMaterial({ color: 0x5a6a4a, roughness: 0.85 });
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x4a8a3a, roughness: 0.8 });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a6a5a, roughness: 0.95 });
+    for (const side of [-1, 1]) {
+      // Rocky face along the water edge
+      const faceGeo = new THREE.BoxGeometry(1.0, 5, CHUNK_LENGTH);
+      const face = new THREE.Mesh(faceGeo, rockMat);
+      face.position.set(side * (trackWidth / 2 + 0.8), 2.5, CHUNK_LENGTH / 2);
+      face.castShadow = true;
+      chunk.add(face);
+
+      // Raised earth bank right above the rock face
+      const bankGeo = new THREE.BoxGeometry(6, 3, CHUNK_LENGTH);
+      const bank = new THREE.Mesh(bankGeo, embankMat);
+      bank.position.set(side * (trackWidth / 2 + 3.8), 3.5, CHUNK_LENGTH / 2);
+      bank.receiveShadow = true;
+      chunk.add(bank);
+
+      // Extended ground plane beyond — wide raised grass terrain
+      const outerGeo = new THREE.BoxGeometry(40, 2, CHUNK_LENGTH);
+      const outer = new THREE.Mesh(outerGeo, grassMat);
+      outer.position.set(side * (trackWidth / 2 + 26), 4.0, CHUNK_LENGTH / 2);
+      outer.receiveShadow = true;
+      chunk.add(outer);
+    }
+
+    // Rocks along the canyon walls — lots of them
+    for (const side of [-1, 1]) {
+      const rockCount = 3 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < rockCount; i++) {
+        const rock = this.createSideRock();
+        rock.position.set(
+          side * (trackWidth / 2 + 1.5 + Math.random() * 4),
+          2 + Math.random() * 2,
+          Math.random() * CHUNK_LENGTH
+        );
+        rock.scale.multiplyScalar(0.4 + Math.random() * 0.5);
+        chunk.add(rock);
+      }
+    }
+
+    // Pine trees and deciduous trees on top of the embankment
+    for (const side of [-1, 1]) {
+      if (Math.random() > 0.4) {
+        const tree = this.createPineTree();
+        tree.position.set(
+          side * (trackWidth / 2 + 5 + Math.random() * 10),
+          4,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(tree);
+      }
+      if (Math.random() > 0.5) {
+        const tree = this.createSpringDeciduousTree();
+        tree.position.set(
+          side * (trackWidth / 2 + 4 + Math.random() * 12),
+          4,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(tree);
+      }
+    }
+
+    // Spring wildflowers on embankment top
+    const flowerColors = [0xff69b4, 0xffdd44, 0x9966cc, 0xffffff, 0xff8888, 0xaa55ff];
+    for (const side of [-1, 1]) {
+      const flowerCount = 3 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < flowerCount; i++) {
+        const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+        const flowerMat = new THREE.MeshStandardMaterial({ color });
+        const flower = new THREE.Mesh(new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 6, 4), flowerMat);
+        flower.position.set(
+          side * (trackWidth / 2 + 2 + Math.random() * 4),
+          5.1,
+          Math.random() * CHUNK_LENGTH
+        );
+        chunk.add(flower);
+      }
+    }
+  }
+
+  private createSpringDeciduousTree(): THREE.Group {
+    const tree = new THREE.Group();
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 });
+
+    // Trunk
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.35, 3, 8), trunkMat);
+    trunk.position.y = 1.5;
+    trunk.castShadow = true;
+    tree.add(trunk);
+
+    // Bright green spherical foliage clusters
+    const leafColors = [0x44bb33, 0x33cc44, 0x55dd55, 0x66ee44, 0x3da832];
+    const foliagePositions: [number, number, number][] = [
+      [0, 3.8, 0], [-0.7, 3.3, 0.3], [0.7, 3.3, -0.3],
+      [0, 4.4, 0.2], [-0.4, 3.9, -0.4], [0.4, 3.9, 0.4],
+    ];
+    for (const [fx, fy, fz] of foliagePositions) {
+      const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+      const foliage = new THREE.Mesh(
+        new THREE.SphereGeometry(0.7 + Math.random() * 0.35, 8, 6),
+        new THREE.MeshStandardMaterial({ color })
+      );
+      foliage.position.set(fx, fy, fz);
+      foliage.castShadow = true;
+      tree.add(foliage);
+    }
+
+    const scale = 0.7 + Math.random() * 0.5;
+    tree.scale.setScalar(scale);
+    return tree;
+  }
+
+  private createBeachUmbrella(): THREE.Group {
+    const group = new THREE.Group();
+
+    // Pole
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), poleMat);
+    pole.position.y = 1.1;
+    pole.castShadow = true;
+    group.add(pole);
+
+    // Colorful cone canopy
+    const canopyColors = [0xff4444, 0x4488ff, 0xffcc00, 0xff6600, 0x44cc44];
+    const color = canopyColors[Math.floor(Math.random() * canopyColors.length)];
+    const canopyMat = new THREE.MeshStandardMaterial({ color });
+    const canopy = new THREE.Mesh(new THREE.ConeGeometry(1.0, 0.8, 8), canopyMat);
+    canopy.position.y = 2.4;
+    canopy.rotation.x = Math.PI; // flip upside down so it opens downward
+    canopy.castShadow = true;
+    group.add(canopy);
+
+    const scale = 0.6 + Math.random() * 0.3;
+    group.scale.setScalar(scale);
+    return group;
+  }
+
+  private createBuoy(): THREE.Group {
+    const group = new THREE.Group();
+
+    // Red sphere
+    const redMat = new THREE.MeshStandardMaterial({ color: 0xdd2222 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6), redMat);
+    body.position.y = 0.2;
+    group.add(body);
+
+    // White stripe
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.08, 6, 12), whiteMat);
+    stripe.position.y = 0.2;
+    stripe.rotation.x = Math.PI / 2;
+    group.add(stripe);
+
+    // Small top spike
+    const spike = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 4), whiteMat);
+    spike.position.y = 0.6;
+    group.add(spike);
+
+    return group;
+  }
+
   private createRamp(
     laneX: number, width: number,
     fromY: number, toY: number,
@@ -388,9 +605,13 @@ export class TrackManager {
     const slopeLen = Math.sqrt(length * length + heightDiff * heightDiff);
     const angle = Math.atan2(heightDiff, length);
 
-    const isAutumn = this.game.seasonManager.season === 'autumn';
-    const rampColor = isAutumn ? 0x8B7355 : 0xbbeeFF;
-    const sideColor = isAutumn ? 0x7a6040 : 0xaaddee;
+    const season = this.game.seasonManager.season;
+    const rampColor = season === 'autumn' ? 0x8B7355
+      : season === 'spring' ? 0x4499cc
+      : 0xbbeeFF;
+    const sideColor = season === 'autumn' ? 0x7a6040
+      : season === 'spring' ? 0x88ccee
+      : 0xaaddee;
 
     const rampGeo = new THREE.BoxGeometry(width - 0.15, 0.25, slopeLen);
     const rampMat = new THREE.MeshStandardMaterial({ color: rampColor });
@@ -416,8 +637,14 @@ export class TrackManager {
 
   private addLaneSupportWall(chunk: THREE.Group, laneX: number, height: number, localZ: number, length: number) {
     const laneW = this.game.laneWidth;
-    const isAutumn = this.game.seasonManager.season === 'autumn';
-    const wallMat = new THREE.MeshStandardMaterial({ color: isAutumn ? 0x7a6040 : 0xaaddee });
+    const season = this.game.seasonManager.season;
+    const wallColor = season === 'autumn' ? 0x7a6040
+      : season === 'spring' ? 0x5a6a4a
+      : 0xaaddee;
+    const faceColor = season === 'autumn' ? 0x6b5535
+      : season === 'spring' ? 0x4a5a3a
+      : 0x99ccdd;
+    const wallMat = new THREE.MeshStandardMaterial({ color: wallColor });
     const sideGeo = new THREE.BoxGeometry(0.2, height, length);
     for (const side of [-1, 1]) {
       const sideWall = new THREE.Mesh(sideGeo, wallMat);
@@ -427,7 +654,7 @@ export class TrackManager {
       chunk.add(sideWall);
     }
     const faceGeo = new THREE.BoxGeometry(laneW - 0.15, height, 0.2);
-    const faceMat = new THREE.MeshStandardMaterial({ color: isAutumn ? 0x6b5535 : 0x99ccdd });
+    const faceMat = new THREE.MeshStandardMaterial({ color: faceColor });
     const face = new THREE.Mesh(faceGeo, faceMat);
     face.position.set(laneX, height / 2, localZ + 0.1);
     face.receiveShadow = true;

@@ -22,6 +22,8 @@ export class ParticleManager {
   private readonly SNOWFLAKE_COUNT = 300;
   private blizzardFlakes: THREE.Mesh[] = [];
   private blizzardActive = false;
+  private rainDrops: THREE.Mesh[] = [];
+  private rainActive = false;
 
   private smallGeo = new THREE.SphereGeometry(0.06, 4, 4);
   private snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -51,12 +53,24 @@ export class ParticleManager {
       this.stopBlizzardFlakes();
     }
 
+    // Rain in spring (second half — sunset and night)
+    const isSpring = this.game.seasonManager.season === 'spring';
+    const springRainTime = isSpring && (this.game.seasonManager.timeOfDay === 'sunset' || this.game.seasonManager.timeOfDay === 'night');
+    if (springRainTime && !this.rainActive) {
+      this.startRain();
+    } else if (!springRainTime && this.rainActive) {
+      this.stopRain();
+    }
+
     // Update snowflakes
     if (this.snowActive) {
       this.updateSnowfall(dt);
     }
     if (this.blizzardActive) {
       this.updateBlizzardFlakes(dt);
+    }
+    if (this.rainActive) {
+      this.updateRain(dt);
     }
 
     // Spawn snow spray behind sled
@@ -254,6 +268,45 @@ export class ParticleManager {
     this.blizzardFlakes = [];
   }
 
+  private startRain() {
+    this.rainActive = true;
+    const playerZ = this.game.player.group.position.z;
+    const rainMat = new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.6 });
+    const rainGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.3, 4);
+    for (let i = 0; i < 200; i++) {
+      const drop = new THREE.Mesh(rainGeo, rainMat);
+      drop.position.set(
+        (Math.random() - 0.5) * 40,
+        Math.random() * 20,
+        playerZ + Math.random() * 100
+      );
+      this.game.scene.add(drop);
+      this.rainDrops.push(drop);
+    }
+  }
+
+  private updateRain(dt: number) {
+    const playerZ = this.game.player.group.position.z;
+    for (const drop of this.rainDrops) {
+      drop.position.y -= 25 * dt;
+      if (drop.position.y < 0 || drop.position.z < playerZ - 15) {
+        drop.position.set(
+          (Math.random() - 0.5) * 40,
+          15 + Math.random() * 10,
+          playerZ + 10 + Math.random() * 90
+        );
+      }
+    }
+  }
+
+  private stopRain() {
+    this.rainActive = false;
+    for (const drop of this.rainDrops) {
+      this.game.scene.remove(drop);
+    }
+    this.rainDrops = [];
+  }
+
   reset() {
     for (const p of this.particles) {
       this.game.scene.remove(p.mesh);
@@ -265,5 +318,6 @@ export class ParticleManager {
     this.snowflakes = [];
     this.snowActive = false;
     this.stopBlizzardFlakes();
+    this.stopRain();
   }
 }

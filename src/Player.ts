@@ -37,7 +37,7 @@ export class Player {
   private vehicle!: THREE.Group;
   private character!: THREE.Group;
   private normalCharacterScale = new THREE.Vector3(1, 1, 1);
-  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' = 'skis';
+  currentVehicle: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak' = 'skis';
   private isMetalMode = false;
   private readonly outfitColor = 0x2196f3;
   private readonly metalColor = 0x111111;
@@ -54,7 +54,7 @@ export class Player {
     game.scene.add(this.group);
   }
 
-  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike') {
+  switchVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak') {
     if (this.currentVehicle === type) return;
     this.currentVehicle = type;
     // Remove old vehicle and character, rebuild
@@ -64,7 +64,7 @@ export class Player {
     this.buildCharacter();
   }
 
-  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike') {
+  private buildVehicle(type: 'bobsled' | 'skis' | 'snowboard' | 'rainbowSkis' | 'mountainBike' | 'motorbike' | 'kayak' | 'jetski' | 'rainbowKayak') {
     this.vehicle = new THREE.Group();
 
     this.crankGroup = null;
@@ -87,6 +87,15 @@ export class Player {
         break;
       case 'motorbike':
         this.buildMotorbikeParts();
+        break;
+      case 'kayak':
+        this.buildKayakParts();
+        break;
+      case 'rainbowKayak':
+        this.buildRainbowKayakParts();
+        break;
+      case 'jetski':
+        this.buildJetskiParts();
         break;
     }
 
@@ -502,6 +511,242 @@ export class Player {
     this.vehicle.add(tail);
   }
 
+  private buildKayakParts() {
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0xe64a19, roughness: 0.4 }); // red-orange
+    const deckMat = new THREE.MeshStandardMaterial({ color: 0xff8a50 }); // lighter orange top
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0xffcc02, metalness: 0.3, roughness: 0.4 });
+    const paddleMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xffcc02, metalness: 0.2, roughness: 0.4 });
+
+    // Hull — long narrow capsule shape
+    const hull = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 2.2, 8, 16), hullMat);
+    hull.rotation.x = Math.PI / 2;
+    hull.position.set(0, -0.05, 0.1);
+    hull.scale.set(0.7, 1, 0.5);
+    hull.castShadow = true;
+    this.vehicle.add(hull);
+
+    // Deck — flat top surface
+    const deckGeo = new THREE.BoxGeometry(0.44, 0.06, 2.4);
+    const deck = new THREE.Mesh(deckGeo, deckMat);
+    deck.position.set(0, 0.1, 0.1);
+    this.vehicle.add(deck);
+
+    // Cockpit opening — rim ring where player sits
+    const cockpitRim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.22, 0.03, 8, 16),
+      rimMat
+    );
+    cockpitRim.position.set(0, 0.14, 0);
+    cockpitRim.rotation.x = Math.PI / 2;
+    this.vehicle.add(cockpitRim);
+
+    // Cockpit interior dark
+    const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const cockpit = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 0.08, 12), cockpitMat);
+    cockpit.position.set(0, 0.1, 0);
+    this.vehicle.add(cockpit);
+
+    // Bow point (front)
+    const bow = new THREE.Mesh(
+      new THREE.ConeGeometry(0.15, 0.5, 8),
+      hullMat
+    );
+    bow.rotation.x = Math.PI / 2;
+    bow.position.set(0, 0.05, 1.5);
+    this.vehicle.add(bow);
+
+    // Stern point (back)
+    const stern = new THREE.Mesh(
+      new THREE.ConeGeometry(0.12, 0.4, 8),
+      hullMat
+    );
+    stern.rotation.x = -Math.PI / 2;
+    stern.position.set(0, 0.05, -1.2);
+    this.vehicle.add(stern);
+
+    // Paddle — shaft stored across the front deck
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 1.6, 6),
+      paddleMat
+    );
+    shaft.position.set(0, 0.22, 0.6);
+    shaft.rotation.z = Math.PI / 2;
+    this.vehicle.add(shaft);
+
+    // Paddle blades on each end
+    for (const side of [-0.8, 0.8]) {
+      const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.02, 0.3),
+        bladeMat
+      );
+      blade.position.set(side, 0.22, 0.6);
+      blade.rotation.y = side > 0 ? 0.3 : -0.3;
+      this.vehicle.add(blade);
+    }
+
+    // Decorative stripe along hull
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffee58 });
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 2.2), stripeMat);
+    stripe.position.set(0, 0.0, 0.1);
+    this.vehicle.add(stripe);
+  }
+
+  private buildRainbowKayakParts() {
+    const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00cc00, 0x0088ff, 0x8800ff];
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.8, roughness: 0.2 });
+
+    // Hull built from rainbow segments
+    const segCount = rainbowColors.length;
+    const hullLen = 2.8;
+    const segLen = hullLen / segCount;
+    for (let i = 0; i < segCount; i++) {
+      const segMat = new THREE.MeshStandardMaterial({ color: rainbowColors[i], metalness: 0.3, roughness: 0.3 });
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.2, segLen), segMat);
+      seg.position.set(0, -0.05, -hullLen / 2 + segLen / 2 + i * segLen + 0.2);
+      seg.castShadow = true;
+      this.vehicle.add(seg);
+    }
+
+    // Bow point — gold
+    const bowMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6, roughness: 0.2 });
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.6, 8), bowMat);
+    bow.rotation.x = -Math.PI / 2;
+    bow.position.set(0, -0.02, 1.7);
+    this.vehicle.add(bow);
+    // Stern point
+    const stern = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.4, 8), bowMat);
+    stern.rotation.x = Math.PI / 2;
+    stern.position.set(0, -0.02, -1.3);
+    this.vehicle.add(stern);
+
+    // Cockpit rim — gold
+    const rimGeo = new THREE.TorusGeometry(0.32, 0.04, 8, 16);
+    const rim = new THREE.Mesh(rimGeo, bowMat);
+    rim.position.set(0, 0.1, 0);
+    rim.rotation.x = Math.PI / 2;
+    this.vehicle.add(rim);
+
+    // Cockpit interior
+    const interiorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const interior = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.15, 12), interiorMat);
+    interior.position.set(0, 0.02, 0);
+    this.vehicle.add(interior);
+
+    // Gold paddle
+    const shaftMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6 });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.6, 6), shaftMat);
+    shaft.position.set(0, 0.22, 0.6);
+    shaft.rotation.z = Math.PI / 2;
+    this.vehicle.add(shaft);
+    for (const side of [-0.8, 0.8]) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.3), bowMat);
+      blade.position.set(side, 0.22, 0.6);
+      blade.rotation.y = side > 0 ? 0.3 : -0.3;
+      this.vehicle.add(blade);
+    }
+  }
+
+  private buildJetskiParts() {
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.3 }); // blue hull
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
+    const seatMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+    const grateMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.6, roughness: 0.3 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: 0x00bcd4 }); // cyan accent
+
+    // Main hull — streamlined body
+    const hull = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.8, 8, 16), hullMat);
+    hull.rotation.x = Math.PI / 2;
+    hull.position.set(0, -0.05, 0.1);
+    hull.scale.set(0.8, 1, 0.55);
+    hull.castShadow = true;
+    this.vehicle.add(hull);
+
+    // Upper deck — white
+    const deckGeo = new THREE.BoxGeometry(0.55, 0.1, 2.0);
+    const deck = new THREE.Mesh(deckGeo, whiteMat);
+    deck.position.set(0, 0.12, 0.1);
+    this.vehicle.add(deck);
+
+    // Bow — pointed front
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 8), hullMat);
+    bow.rotation.x = Math.PI / 2;
+    bow.position.set(0, 0.05, 1.35);
+    this.vehicle.add(bow);
+
+    // Front accent stripe
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 1.2), accentMat);
+    stripe.position.set(0, 0.18, 0.4);
+    this.vehicle.add(stripe);
+
+    // Seat — elongated black cushion
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.7), seatMat);
+    seat.position.set(0, 0.22, -0.1);
+    this.vehicle.add(seat);
+
+    // Seat back rest
+    const backrest = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.2, 0.08), seatMat);
+    backrest.position.set(0, 0.32, -0.45);
+    this.vehicle.add(backrest);
+
+    // Handlebar column
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.45, 6), metalMat);
+    column.position.set(0, 0.42, 0.35);
+    column.rotation.x = -0.3;
+    this.vehicle.add(column);
+
+    // Handlebars — horizontal bar
+    const handlebar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), metalMat);
+    handlebar.position.set(0, 0.6, 0.42);
+    handlebar.rotation.z = Math.PI / 2;
+    this.vehicle.add(handlebar);
+
+    // Grips
+    for (const side of [-0.3, 0.3]) {
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.1, 8), seatMat);
+      grip.position.set(side, 0.6, 0.42);
+      grip.rotation.z = Math.PI / 2;
+      this.vehicle.add(grip);
+    }
+
+    // Small windshield
+    const windshieldMat = new THREE.MeshStandardMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.4,
+      metalness: 0.3,
+    });
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.03), windshieldMat);
+    windshield.position.set(0, 0.45, 0.55);
+    windshield.rotation.x = -0.4;
+    this.vehicle.add(windshield);
+
+    // Intake grate on back
+    for (let i = 0; i < 5; i++) {
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.015, 0.04), grateMat);
+      slat.position.set(0, 0.05 + i * 0.04, -0.85 - i * 0.02);
+      this.vehicle.add(slat);
+    }
+
+    // Grate frame
+    const grateFrame = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.03), metalMat);
+    grateFrame.position.set(0, 0.13, -0.92);
+    this.vehicle.add(grateFrame);
+
+    // Side panels — blue accent
+    for (const side of [-0.3, 0.3]) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.15, 1.0), hullMat);
+      panel.position.set(side, 0.08, 0.1);
+      this.vehicle.add(panel);
+    }
+
+    // Rear platform / step
+    const rearPlatform = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.3), whiteMat);
+    rearPlatform.position.set(0, 0.08, -0.7);
+    this.vehicle.add(rearPlatform);
+  }
+
   private buildCharacter() {
     this.character = new THREE.Group();
     const skinMat = new THREE.MeshStandardMaterial({ color: 0xf4c7a1, roughness: 0.8 });
@@ -744,6 +989,7 @@ export class Player {
     this.leftLeg = null;
     this.rightLeg = null;
     const isBike = this.currentVehicle === 'mountainBike';
+    const isKayak = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak';
     const legSides: [number, THREE.Group | null][] = [];
 
     for (const side of [-0.15, 0.15]) {
@@ -764,7 +1010,6 @@ export class Player {
       const sole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.28), darkMat);
 
       if (isBike) {
-        // Position relative to leg group pivot (at hip)
         thigh.position.set(0, -0.15, 0);
         shin.position.set(0, -0.38, 0.05);
         boot.position.set(0, -0.48, 0.1);
@@ -772,6 +1017,16 @@ export class Player {
         parent.add(thigh, shin, boot, sole);
         legGroup!.position.set(side, 0.5, 0.05);
         this.character.add(legGroup!);
+      } else if (isKayak) {
+        // Legs stretched forward inside kayak cockpit
+        thigh.position.set(side, 0.15, 0.25);
+        thigh.rotation.x = -1.2; // angled forward
+        shin.position.set(side, 0.0, 0.55);
+        shin.rotation.x = -1.4;
+        boot.position.set(side, -0.05, 0.75);
+        boot.rotation.x = 0;
+        sole.position.set(side, -0.1, 0.75);
+        this.character.add(thigh, shin, boot, sole);
       } else {
         thigh.position.set(side, 0.35, 0.05);
         thigh.rotation.x = -0.15;
@@ -794,6 +1049,12 @@ export class Player {
     // Snowboard stance: body sideways, head turned to face forward
     if (this.currentVehicle === 'snowboard') {
       this.character.rotation.y = Math.PI / 2;
+    }
+
+    // Kayak seated position: lower body, legs stretched forward
+    if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak') {
+      this.character.position.y = -0.25;
+      this.character.rotation.x = -0.3; // lean back slightly
     }
 
     this.group.add(this.character);
@@ -819,6 +1080,16 @@ export class Player {
       this.spinning = false;
       this.spinAngle = 0;
     }
+  }
+
+  waterfallDrop() {
+    this.isJumping = true;
+    this.landSoundPlayed = false;
+    // Start with zero upward velocity — pure drop
+    this.jumpVelocity = 0;
+    // Lift the player up first to simulate going over the cliff edge
+    this.group.position.y += 3;
+    this.game.soundManager.playSplash();
   }
 
   setMetalMode(active: boolean) {
@@ -895,7 +1166,11 @@ export class Player {
     while (this.group.children.length > 0) {
       this.group.remove(this.group.children[0]);
     }
-    const defaultVehicle = this.game.seasonManager.season === 'autumn' ? 'mountainBike' : 'skis';
+    const season = this.game.seasonManager.season;
+    const defaultVehicle = season === 'autumn' ? 'mountainBike'
+      : season === 'spring' ? 'kayak'
+      : season === 'summer' ? 'jetski'
+      : 'skis';
     this.currentVehicle = defaultVehicle;
     this.buildVehicle(defaultVehicle);
     this.buildCharacter();
@@ -997,7 +1272,11 @@ export class Player {
       // Play land sound slightly early when about to hit ground
       const nextY = this.group.position.y + this.jumpVelocity * dt;
       if (this.jumpVelocity < 0 && !this.landSoundPlayed && nextY <= this.groundY + 0.3) {
-        this.game.soundManager.playLand();
+        if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak') {
+          this.game.soundManager.playSplash();
+        } else {
+          this.game.soundManager.playLand();
+        }
         this.landSoundPlayed = true;
       }
       this.jumpVelocity += this.gravity * dt;
@@ -1064,10 +1343,19 @@ export class Player {
       }
     }
 
-    // Gentle bobbing motion while sliding
+    // Bobbing motion while sliding
+    const inKayak = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak';
     if (!this.isJumping && !this.isDucking) {
-      const bob = Math.sin(Date.now() * 0.008) * 0.03;
-      this.character.position.y = 0.15 + bob;
+      if (inKayak) {
+        // Deeper bobbing for kayak — dips slightly below surface
+        const bob = Math.sin(Date.now() * 0.005) * 0.12;
+        const tilt = Math.sin(Date.now() * 0.004 + 1) * 0.04;
+        this.group.position.y = this.groundY + bob;
+        this.group.rotation.z = tilt;
+      } else {
+        const bob = Math.sin(Date.now() * 0.008) * 0.03;
+        this.character.position.y = 0.15 + bob;
+      }
     }
   }
 

@@ -18,6 +18,7 @@ export class EnvironmentManager {
 
   private bears: { mesh: THREE.Group; hasGrowled: boolean }[] = [];
   private nextBearScore = 0;
+  private springClouds: THREE.Group[] = [];
 
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
@@ -66,8 +67,10 @@ export class EnvironmentManager {
 
     // Update ground plane color per season
     const groundMat = this.game.groundMesh.material as THREE.MeshStandardMaterial;
-    if (season === 'summer') {
-      groundMat.color.setHex(0x4a8c3f);
+    if (season === 'spring') {
+      groundMat.color.setHex(0x2a6688);
+    } else if (season === 'summer') {
+      groundMat.color.setHex(0xf5deb3);
     } else if (season === 'autumn') {
       groundMat.color.setHex(0x5a8a45);
     } else {
@@ -142,6 +145,14 @@ export class EnvironmentManager {
       this.headlight = null;
       const glow = this.game.player.group.getObjectByName('headlightGlow');
       if (glow) this.game.player.group.remove(glow);
+    }
+
+    // Spring clouds
+    if (season === 'spring' && this.springClouds.length === 0) {
+      this.spawnSpringClouds();
+    }
+    if (season !== 'spring' && this.springClouds.length > 0) {
+      this.removeSpringClouds();
     }
 
     this.prevSeason = season;
@@ -249,6 +260,35 @@ export class EnvironmentManager {
 
     group.scale.setScalar(1.4);
     return group;
+  }
+
+  private spawnSpringClouds() {
+    const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+    const count = 6 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const cloud = new THREE.Group();
+      const sphereCount = 3 + Math.floor(Math.random() * 2);
+      for (let j = 0; j < sphereCount; j++) {
+        const r = 1.5 + Math.random() * 1.5;
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), cloudMat);
+        sphere.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 2);
+        cloud.add(sphere);
+      }
+      cloud.position.set(
+        (Math.random() - 0.5) * 80,
+        15 + Math.random() * 15,
+        (Math.random() - 0.5) * 80 + 40
+      );
+      this.game.scene.add(cloud);
+      this.springClouds.push(cloud);
+    }
+  }
+
+  private removeSpringClouds() {
+    for (const cloud of this.springClouds) {
+      this.game.scene.remove(cloud);
+    }
+    this.springClouds = [];
   }
 
   private createStars() {
@@ -379,5 +419,6 @@ export class EnvironmentManager {
       const glow = this.game.player.group.getObjectByName('headlightGlow');
       if (glow) this.game.player.group.remove(glow);
     }
+    this.removeSpringClouds();
   }
 }

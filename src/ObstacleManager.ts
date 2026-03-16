@@ -12,12 +12,12 @@ export interface Obstacle {
 }
 
 type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree'
-  | 'floaty' | 'turtle' | 'seashell' | 'leafPile' | 'oakTree' | 'log';
+  | 'floaty' | 'turtle' | 'seashell' | 'leafPile' | 'oakTree' | 'log' | 'buoy';
 
 export class ObstacleManager {
   game: Game;
   obstacles: Obstacle[] = [];
-  private spawnTimer = -3; // 3-second grace period at start
+  spawnTimer = -3; // 3-second grace period at start
   private spawnInterval = 1.2; // seconds between spawns
   private readonly minSpawnInterval = 0.55;
   private spawnZ = 100; // spawn distance ahead
@@ -58,8 +58,10 @@ export class ObstacleManager {
   private spawnObstacle() {
     const season = this.game.seasonManager.season;
     let types: ObstacleType[];
-    if (season === 'summer') {
-      types = ['floaty', 'turtle', 'rock', 'seashell'];
+    if (season === 'spring') {
+      types = ['rock', 'log', 'treeBranch'];
+    } else if (season === 'summer') {
+      types = ['rock', 'floaty', 'buoy', 'seashell'];
     } else if (season === 'autumn') {
       types = ['leafPile', 'oakTree', 'rock', 'log', 'leafPile', 'treeBranch', 'largeTree'];
     } else {
@@ -507,6 +509,34 @@ export class ObstacleManager {
         break;
       }
 
+      case 'buoy': {
+        // Tall red/white navigation buoy
+        const buoyRedMat = new THREE.MeshStandardMaterial({ color: 0xdd2222, roughness: 0.5 });
+        const buoyWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        // Red cylinder body
+        const buoyBody = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 1.2, 10), buoyRedMat);
+        buoyBody.position.y = 0.6;
+        buoyBody.castShadow = true;
+        group.add(buoyBody);
+        // White stripe bands
+        for (const bandY of [0.35, 0.7, 1.05]) {
+          const band = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.08, 10), buoyWhiteMat);
+          band.position.y = bandY;
+          group.add(band);
+        }
+        // Tapered top
+        const buoyTop = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.3, 8), buoyRedMat);
+        buoyTop.position.y = 1.35;
+        buoyTop.castShadow = true;
+        group.add(buoyTop);
+        // Small light on top
+        const lightMat = new THREE.MeshStandardMaterial({ color: 0xffff44, emissive: 0xffff00, emissiveIntensity: 0.6 });
+        const light = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), lightMat);
+        light.position.y = 1.55;
+        group.add(light);
+        break;
+      }
+
     }
 
     return group;
@@ -552,10 +582,13 @@ export class ObstacleManager {
   }
 
   private buildRockVariant(group: THREE.Group, variant: number) {
-    const isAutumn = this.game.seasonManager.season === 'autumn';
+    const season = this.game.seasonManager.season;
+    const isAutumn = season === 'autumn';
+    const isSpring = season === 'spring';
     const fallLeafColors = [0xcc3333, 0xff8800, 0xffcc00, 0x6b8e23, 0x8B4513];
     const capColor = isAutumn
       ? fallLeafColors[Math.floor(Math.random() * fallLeafColors.length)]
+      : isSpring ? 0x5a8a4a
       : 0xfafafa;
     const snowCapMat = new THREE.MeshStandardMaterial({ color: capColor });
 

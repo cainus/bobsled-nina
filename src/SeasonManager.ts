@@ -1,11 +1,11 @@
-export type Season = 'winter' | 'summer' | 'autumn';
+export type Season = 'winter' | 'spring' | 'summer' | 'autumn';
 export type TimeOfDay = 'morning' | 'sunset' | 'night';
 
 const PHASE_DURATION = 2000; // points per time-of-day phase
 const PHASES_PER_DAY = 3; // morning, sunset, night
 const DAYS_PER_SEASON = 2;
 const SEASON_DURATION = PHASE_DURATION * PHASES_PER_DAY * DAYS_PER_SEASON; // 12000
-const SEASONS: Season[] = ['winter', 'summer', 'autumn'];
+const SEASONS: Season[] = ['winter', 'spring', 'summer', 'autumn'];
 const TIMES: TimeOfDay[] = ['morning', 'sunset', 'night'];
 
 export interface SeasonConfig {
@@ -42,22 +42,42 @@ const CONFIGS: Record<Season, Record<TimeOfDay, SeasonConfig>> = {
       showStars: true, showSnow: false,
     },
   },
+  spring: {
+    morning: {
+      skyColor: 0x7ec8e3, fogColor: 0x7ec8e3, groundColor: 0x5a9a4a,
+      laneColors: [0x3388bb, 0x4499cc, 0x3388bb], wallColor: 0x887766,
+      ambientIntensity: 0.65, sunIntensity: 1.0, sunColor: 0xffffff,
+      showStars: false, showSnow: false,
+    },
+    sunset: {
+      skyColor: 0xee8855, fogColor: 0xd8946a, groundColor: 0x4a7a3a,
+      laneColors: [0x2a7099, 0x3388aa, 0x2a7099], wallColor: 0x776655,
+      ambientIntensity: 0.45, sunIntensity: 0.8, sunColor: 0xff9944,
+      showStars: false, showSnow: false,
+    },
+    night: {
+      skyColor: 0x0a1830, fogColor: 0x0a1830, groundColor: 0x3a5a3a,
+      laneColors: [0x1a4466, 0x225577, 0x1a4466], wallColor: 0x554433,
+      ambientIntensity: 0.25, sunIntensity: 0.3, sunColor: 0x8888cc,
+      showStars: true, showSnow: false,
+    },
+  },
   summer: {
     morning: {
       skyColor: 0x4fc3f7, fogColor: 0x4fc3f7, groundColor: 0xf5deb3,
-      laneColors: [0xf0d8a0, 0xf5deb3, 0xf0d8a0], wallColor: 0xdec89a,
+      laneColors: [0x1188cc, 0x22aadd, 0x1188cc], wallColor: 0xccaa77,
       ambientIntensity: 0.7, sunIntensity: 1.2, sunColor: 0xfffff0,
       showStars: false, showSnow: false,
     },
     sunset: {
       skyColor: 0xff8a65, fogColor: 0xf4a87c, groundColor: 0xe8c89a,
-      laneColors: [0xe5c090, 0xebc89a, 0xe5c090], wallColor: 0xd4b080,
+      laneColors: [0x0e6699, 0x1a88bb, 0x0e6699], wallColor: 0xd4b080,
       ambientIntensity: 0.5, sunIntensity: 0.9, sunColor: 0xff7733,
       showStars: false, showSnow: false,
     },
     night: {
       skyColor: 0x0c1445, fogColor: 0x0c1445, groundColor: 0x9aa8b8,
-      laneColors: [0xb0b898, 0xb8c0a0, 0xb0b898], wallColor: 0x9aa0a8,
+      laneColors: [0x0a3355, 0x104466, 0x0a3355], wallColor: 0x9aa0a8,
       ambientIntensity: 0.35, sunIntensity: 0.5, sunColor: 0xccccff,
       showStars: true, showSnow: false,
     },
@@ -111,7 +131,6 @@ export class SeasonManager {
     return CONFIGS[this.season][this.timeOfDay];
   }
 
-  /** Returns 0-1 progress within the current phase (for smooth transitions) */
   getPhaseProgress(score: number): number {
     return (score % PHASE_DURATION) / PHASE_DURATION;
   }
