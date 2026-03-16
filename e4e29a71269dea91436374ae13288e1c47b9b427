@@ -1,0 +1,25 @@
+src/PowerupManager.ts
+  b6dc655b37445972 174-176,309-312,322,325,578-617,830,833
+src/Player.ts
+  b6dc655b37445972 48,887-888,895,906,913,920,922,1140-1145,1232,1259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "e4e29a71269dea91436374ae13288e1c47b9b427",
+  "prompts": {
+    "b6dc655b37445972": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27f0b18f-9210-415c-9c77-a6893e6c81c9",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 74,
+      "total_deletions": 19,
+      "accepted_lines": 68,
+      "overriden_lines": 0
+    }
+  }
+}
