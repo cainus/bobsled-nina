@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Season } from './SeasonManager';
+import { cameraSideX } from './CameraSpace';
 
 const CHUNK_LENGTH = 40;
 
@@ -358,6 +359,41 @@ export class TrackDecorations {
     else TrackDecorations.addWinterSides(chunk, trackWidth, season);
   }
 
+  private static addSummerWaveStrip(chunk: THREE.Group, centerX: number, width: number, laneIndex: number, opacity = 0.88) {
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x1565c0,
+      metalness: 0.4,
+      roughness: 0.15,
+      transparent: true,
+      opacity,
+    });
+    const laneGroup = new THREE.Group();
+    laneGroup.userData = { springLane: laneIndex, springBaseY: 0 };
+
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(width, CHUNK_LENGTH), waterMat);
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(centerX, -0.1, CHUNK_LENGTH / 2);
+    laneGroup.add(water);
+
+    const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+    const foamCount = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < foamCount; i++) {
+      const foam = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.15 + Math.random() * 0.35, 2 + Math.random() * 4),
+        foamMat
+      );
+      foam.rotation.x = -Math.PI / 2;
+      foam.position.set(
+        centerX + (Math.random() - 0.5) * (width - 0.4),
+        -0.04,
+        Math.random() * CHUNK_LENGTH
+      );
+      laneGroup.add(foam);
+    }
+
+    chunk.add(laneGroup);
+  }
+
   private static addWinterSides(chunk: THREE.Group, trackWidth: number, season: Season) {
     const snowMat = new THREE.MeshStandardMaterial({ color: 0xfafafa });
 
@@ -429,64 +465,46 @@ export class TrackDecorations {
   }
 
   private static addSummerSides(chunk: THREE.Group, trackWidth: number) {
-    const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x1565c0,
-      metalness: 0.4,
-      roughness: 0.15,
-      transparent: true,
-      opacity: 0.88,
-    });
+    const laneWidth = (trackWidth - 2) / 3;
+    const stripWidth = laneWidth - 0.15;
+    const leftBeachX = cameraSideX(trackWidth / 2 + 33, 'left');
 
-    // Water on both sides as extra "lanes" that bob with the wave system
-    for (const side of [-1, 1]) {
-      const laneGroup = new THREE.Group();
-      laneGroup.userData = { springLane: side * 4, springBaseY: 0 };
-      const waterGeo = new THREE.PlaneGeometry(30, CHUNK_LENGTH);
-      const water = new THREE.Mesh(waterGeo, waterMat);
-      water.rotation.x = -Math.PI / 2;
-      water.position.set(side * (trackWidth / 2 + 16), -0.1, CHUNK_LENGTH / 2);
-      laneGroup.add(water);
-      chunk.add(laneGroup);
-    }
+    // Keep one water band on camera-right, then transition to beach on the far left.
+    TrackDecorations.addSummerWaveStrip(chunk, cameraSideX(trackWidth / 2 + 16, 'right'), 30, -4);
 
-    // Open ocean extends further on the left
-    const deepGroup = new THREE.Group();
-    deepGroup.userData = { springLane: -8, springBaseY: 0 };
-    const deepWater = new THREE.Mesh(new THREE.PlaneGeometry(60, CHUNK_LENGTH), waterMat);
-    deepWater.rotation.x = -Math.PI / 2;
-    deepWater.position.set(-(trackWidth / 2 + 61), -0.1, CHUNK_LENGTH / 2);
-    deepGroup.add(deepWater);
-    chunk.add(deepGroup);
-
-    // Sand beach right (closer to track)
     const sandMat = new THREE.MeshStandardMaterial({ color: 0xf5deb3 });
-    const sandGeo = new THREE.BoxGeometry(40, 0.5, CHUNK_LENGTH);
-    const sand = new THREE.Mesh(sandGeo, sandMat);
-    sand.position.set(trackWidth / 2 + 38, -0.1, CHUNK_LENGTH / 2);
-    sand.receiveShadow = true;
-    chunk.add(sand);
+    const leftSand = new THREE.Mesh(new THREE.BoxGeometry(44, 0.5, CHUNK_LENGTH), sandMat);
+    leftSand.position.set(leftBeachX, -0.05, CHUNK_LENGTH / 2);
+    leftSand.receiveShadow = true;
+    chunk.add(leftSand);
 
-    // Palm trees on the beach
-    const treeCount = 2 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < treeCount; i++) {
+    const leftPalmCount = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < leftPalmCount; i++) {
       const palm = TrackDecorations.createPalmTree();
       palm.position.set(
-        trackWidth / 2 + 20 + Math.random() * 15,
+        leftBeachX - 10 + Math.random() * 18,
         0,
         Math.random() * CHUNK_LENGTH
       );
       chunk.add(palm);
     }
 
-    // Beach umbrellas on the sand
-    if (Math.random() > 0.3) {
+    if (Math.random() > 0.35) {
       const umbrella = TrackDecorations.createBeachUmbrella();
       umbrella.position.set(
-        trackWidth / 2 + 20 + Math.random() * 8,
+        leftBeachX - 10 + Math.random() * 16,
         0.2,
         Math.random() * CHUNK_LENGTH
       );
       chunk.add(umbrella);
+    }
+
+    // Rebuild the entire right side as more of the same wavy lane strips.
+    for (let i = 0; i < 6; i++) {
+      const laneIndex = 2 + i;
+      const centerX = trackWidth / 2 + laneWidth * (i + 0.5);
+      const width = i < 4 ? stripWidth : laneWidth * 2.2;
+      TrackDecorations.addSummerWaveStrip(chunk, centerX, width, laneIndex, i < 4 ? 0.88 : 0.84);
     }
 
     // Buoys along both track edges — evenly spaced like lane markers
@@ -503,16 +521,6 @@ export class TrackDecorations {
       }
     }
 
-    // Extra buoys further out in the ocean (left side)
-    if (Math.random() > 0.5) {
-      const buoy = TrackDecorations.createBuoy();
-      buoy.position.set(
-        -(trackWidth / 2 + 8 + Math.random() * 15),
-        0.0,
-        Math.random() * CHUNK_LENGTH
-      );
-      chunk.add(buoy);
-    }
   }
 
   private static addAutumnSides(chunk: THREE.Group, trackWidth: number, season: Season) {

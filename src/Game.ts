@@ -213,12 +213,14 @@ export class Game {
       if (isAutumn) {
         const autumnMat = new THREE.MeshStandardMaterial({ map: autumnTexture });
         const mountain = new THREE.Mesh(geo, autumnMat);
+        mountain.userData.baseColor = mountainColor;
         mountain.position.set(peak.x, peakHeight / 2 - 5, peak.z);
         mountain.rotation.y = Math.random() * Math.PI;
         this.scene.add(mountain);
         this.mountainMeshes.push(mountain);
       } else {
         const mountain = new THREE.Mesh(geo, mountainMat);
+        mountain.userData.baseColor = mountainColor;
         mountain.position.set(peak.x, isSummer ? -3 : peakHeight / 2 - 5, peak.z);
         if (isSummer) mountain.scale.set(1, 0.5, 1); // flatten the domes
         mountain.rotation.y = Math.random() * Math.PI;
@@ -232,6 +234,7 @@ export class Game {
           const capHeight2 = peakHeight * 0.4;
           const capGeo = new THREE.ConeGeometry(capSize, capHeight2, 12);
           const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: capColor }));
+          cap.userData.baseColor = capColor;
           cap.position.set(peak.x, peakHeight - 5 - capHeight2 / 2, peak.z);
           cap.rotation.y = mountain.rotation.y;
           this.scene.add(cap);
@@ -269,6 +272,33 @@ export class Game {
       );
       this.scene.add(cloud);
       this.mountainMeshes.push(cloud);
+    }
+  }
+
+  updateMountainShading() {
+    const season = this.seasonManager.season;
+    const time = this.seasonManager.timeOfDay;
+    const phaseProgress = this.seasonManager.getPhaseProgress(this.score);
+    let darkness = 1;
+
+    if (season === 'summer') {
+      if (time === 'morning') {
+        darkness = 1;
+      } else if (time === 'sunset') {
+        darkness = 1 - phaseProgress * 0.35;
+      } else {
+        darkness = 0.65 - phaseProgress * 0.15;
+      }
+    }
+
+    for (const obj of this.mountainMeshes) {
+      obj.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        if (!(child.material instanceof THREE.MeshStandardMaterial)) return;
+        const baseColor = child.userData.baseColor;
+        if (typeof baseColor !== 'number') return;
+        child.material.color.setHex(baseColor).multiplyScalar(darkness);
+      });
     }
   }
 
@@ -513,6 +543,7 @@ export class Game {
 
     // Update mountains if season changed
     this.createMountains();
+    this.updateMountainShading();
 
     // Render
     this.renderer.render(this.scene, this.camera);

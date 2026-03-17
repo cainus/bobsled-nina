@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Game } from './Game';
 import type { Season, TimeOfDay } from './SeasonManager';
+import { cameraSideX } from './CameraSpace';
 
 export class EnvironmentManager {
   game: Game;
@@ -137,13 +138,14 @@ export class EnvironmentManager {
     }
     if (this.motorboat) {
       const t = Date.now() * 0.001;
-      // Bob on waves
-      this.motorboat.position.y = 0.2 + Math.sin(t * 2) * 0.3;
-      this.motorboat.rotation.z = Math.sin(t * 1.5) * 0.05;
-      // Weave slightly in X
-      this.motorboat.position.x = -14 + Math.sin(t * 0.4) * 3;
+      const wave = this.game.trackManager.getSpringWaveOffset(-4);
+      // Ride high on the camera-right summer water band.
+      this.motorboat.position.y = 1.35 + wave * 0.35 + Math.sin(t * 2) * 0.08;
+      this.motorboat.rotation.z = Math.sin(t * 1.5) * 0.04;
+      this.motorboat.rotation.x = Math.sin(t * 1.1) * 0.02;
+      this.motorboat.position.x = cameraSideX(16, 'right') + Math.sin(t * 0.4) * 1.8;
       // Stay alongside the player in Z
-      this.motorboat.position.z = 8 + Math.sin(t * 0.7) * 5;
+      this.motorboat.position.z = 18 + Math.sin(t * 0.7) * 4;
     }
 
     // Summer sun, glow, and thin clouds
@@ -479,7 +481,7 @@ export class EnvironmentManager {
     }
 
     boat.scale.setScalar(1.2);
-    boat.position.set(-14, 0.2, 8);
+    boat.position.set(cameraSideX(16, 'right'), 1.35, 18);
     this.game.scene.add(boat);
     this.motorboat = boat;
   }

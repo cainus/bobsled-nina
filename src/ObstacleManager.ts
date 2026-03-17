@@ -5,16 +5,19 @@ export interface Obstacle {
   mesh: THREE.Object3D;
   collider?: THREE.Object3D; // if set, use this for collision instead of mesh
   active: boolean;
+  kind?: ObstacleType;
   jumpScored?: boolean;
   isSnowman?: boolean;
   isPineTree?: boolean;
   isBonus?: boolean;
   lane?: number; // track lane for spring wave offset
   floatsOnWave?: boolean; // if true, follows spring wave; if false, stays at base height
+  baseX?: number;
+  swimTime?: number;
 }
 
 type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree'
-  | 'floaty' | 'turtle' | 'seashell' | 'leafPile' | 'oakTree' | 'log' | 'buoy' | 'wideRock';
+  | 'floaty' | 'turtle' | 'shark' | 'leafPile' | 'oakTree' | 'log' | 'buoy' | 'wideRock';
 
 export class ObstacleManager {
   game: Game;
@@ -58,6 +61,13 @@ export class ObstacleManager {
         }
       }
 
+      if (obs.kind === 'shark' && obs.baseX !== undefined) {
+        obs.swimTime = (obs.swimTime ?? Math.random() * Math.PI * 2) + dt * 0.8;
+        obs.mesh.position.x = obs.baseX + Math.sin(obs.swimTime) * 0.28;
+        obs.mesh.position.y += Math.sin(obs.swimTime * 1.7) * 0.003;
+        obs.mesh.rotation.y = Math.sin(obs.swimTime) * 0.18;
+      }
+
       // Remove if behind camera
       if (obs.mesh.position.z < -15) {
         obs.active = false;
@@ -75,7 +85,7 @@ export class ObstacleManager {
     if (season === 'spring') {
       types = ['rock', 'log', 'treeBranch', 'wideRock'];
     } else if (season === 'summer') {
-      types = ['rock', 'floaty', 'buoy', 'seashell'];
+      types = ['rock', 'floaty', 'buoy', 'shark'];
     } else if (season === 'autumn') {
       types = ['leafPile', 'oakTree', 'rock', 'log', 'leafPile', 'treeBranch', 'largeTree'];
     } else {
@@ -172,11 +182,14 @@ export class ObstacleManager {
         this.game.scene.add(mesh);
         this.obstacles.push({
           mesh, active: true,
+          kind: type,
           isSnowman: type === 'snowman',
           isPineTree: type === 'pineTree',
           isBonus: type === 'leafPile',
           lane: isSpring ? lane : undefined,
           floatsOnWave: floats,
+          baseX: lane * this.game.laneWidth,
+          swimTime: type === 'shark' ? Math.random() * Math.PI * 2 : undefined,
         });
       }
     }
@@ -457,29 +470,51 @@ export class ObstacleManager {
         break;
       }
 
-      case 'seashell': {
-        // Spiral seashell
-        const shellMat = new THREE.MeshStandardMaterial({ color: 0xfce4b8, roughness: 0.5 });
-        const innerMat = new THREE.MeshStandardMaterial({ color: 0xffb6c1 });
-        // Main shell body — cone spiral approximation
-        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.0, 12), shellMat);
-        cone.position.y = 0.5;
-        cone.rotation.z = 0.3;
-        cone.castShadow = true;
-        group.add(cone);
-        // Spiral ridges
-        for (let i = 0; i < 4; i++) {
-          const ridge = new THREE.Mesh(new THREE.TorusGeometry(0.35 - i * 0.06, 0.03, 6, 12), shellMat);
-          ridge.position.set(0, 0.3 + i * 0.18, 0);
-          ridge.rotation.x = Math.PI / 2;
-          group.add(ridge);
+      case 'shark': {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x607d8b, roughness: 0.7 });
+        const bellyMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.8 });
+        const finMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.65 });
+
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 1.2, 8, 14), bodyMat);
+        body.rotation.x = Math.PI / 2;
+        body.position.set(0, 0.32, 0);
+        body.castShadow = true;
+        group.add(body);
+
+        const belly = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.08, 1.0), bellyMat);
+        belly.position.set(0, 0.12, 0.05);
+        group.add(belly);
+
+        const dorsalFin = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.45, 6), finMat);
+        dorsalFin.position.set(0, 0.62, -0.05);
+        dorsalFin.rotation.z = Math.PI;
+        group.add(dorsalFin);
+
+        for (const side of [-1, 1]) {
+          const sideFin = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.28, 6), finMat);
+          sideFin.position.set(side * 0.22, 0.2, -0.05);
+          sideFin.rotation.z = side * 0.9;
+          sideFin.rotation.x = Math.PI / 2;
+          group.add(sideFin);
         }
-        // Opening
-        const opening = new THREE.Mesh(new THREE.CircleGeometry(0.25, 10), innerMat);
-        opening.position.set(0, 0.2, 0.15);
-        opening.rotation.x = -0.3;
-        group.add(opening);
-        group.scale.setScalar(1.2);
+
+        const tail = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.45, 6), finMat);
+        tail.position.set(0, 0.28, -0.9);
+        tail.rotation.x = Math.PI / 2;
+        tail.scale.set(1, 1.3, 0.5);
+        group.add(tail);
+
+        const nose = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.35, 8), bodyMat);
+        nose.position.set(0, 0.3, 0.9);
+        nose.rotation.x = -Math.PI / 2;
+        group.add(nose);
+
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        for (const side of [-1, 1]) {
+          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMat);
+          eye.position.set(side * 0.12, 0.38, 0.68);
+          group.add(eye);
+        }
         break;
       }
 

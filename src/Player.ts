@@ -808,10 +808,12 @@ export class Player {
 
   private buildCharacter() {
     this.character = new THREE.Group();
+    const isSummerLook = this.game.seasonManager.season === 'summer';
     const skinMat = new THREE.MeshStandardMaterial({ color: 0xf4c7a1, roughness: 0.8 });
     const hairMat = new THREE.MeshStandardMaterial({ color: 0x6b3a2a, roughness: 0.9 });
-    const outfitMat = new THREE.MeshStandardMaterial({ color: this.outfitColor });
-    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1565c0 });
+    const outfitMat = new THREE.MeshStandardMaterial({ color: isSummerLook ? 0xf8f4ee : this.outfitColor });
+    const accentMat = new THREE.MeshStandardMaterial({ color: isSummerLook ? 0xff6f91 : 0x1976d2 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: isSummerLook ? 0x111111 : 0x1565c0 });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
 
     // --- Torso --- rounded capsule shape
@@ -821,10 +823,16 @@ export class Player {
     this.character.add(torso);
 
     // Jacket collar / zip detail
-    const zipMat = new THREE.MeshStandardMaterial({ color: 0x1976d2 });
-    const zip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, 0.02), zipMat);
+    const zip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, 0.02), accentMat);
     zip.position.set(0, 0.8, 0.28);
     this.character.add(zip);
+
+    if (isSummerLook) {
+      const bottoms = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.18, 0.3), pantsMat);
+      bottoms.position.set(0, 0.48, 0.02);
+      bottoms.castShadow = true;
+      this.character.add(bottoms);
+    }
 
     // --- Head group ---
     const headGroup = new THREE.Group();
@@ -926,6 +934,9 @@ export class Player {
       this.blackHelmetGroup.add(vent);
     }
     headGroup.add(this.blackHelmetGroup);
+    if (isSummerLook) {
+      this.blackHelmetGroup.visible = false;
+    }
 
     // Hair peeking out from under helmet — bangs at forehead
     const bangs = new THREE.Mesh(
@@ -1036,11 +1047,12 @@ export class Player {
       this.character.add(forearm);
 
       // Glove — at grip position
-      const glove = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), darkMat);
+      const handMat = isSummerLook ? skinMat : darkMat;
+      const glove = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), handMat);
       glove.position.set(handX, handY, handZ);
       this.character.add(glove);
       // Thumb
-      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.04, 4, 8), darkMat);
+      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.04, 4, 8), handMat);
       thumb.position.set(handX + side * -0.06, handY, handZ + 0.03);
       thumb.rotation.z = side * 0.5;
       this.character.add(thumb);
@@ -1058,17 +1070,19 @@ export class Player {
       const parent = legGroup ?? this.character;
 
       // Thigh
-      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.15, 6, 12), pantsMat);
+      const legMat = isSummerLook ? skinMat : pantsMat;
+      const footMat = isSummerLook ? skinMat : darkMat;
+      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.15, 6, 12), legMat);
       thigh.castShadow = true;
       // Shin
-      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.12, 6, 12), pantsMat);
+      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.12, 6, 12), legMat);
       shin.castShadow = true;
       // Boot
-      const boot = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.1, 6, 12), darkMat);
+      const boot = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.1, 6, 12), footMat);
       boot.rotation.x = Math.PI / 2;
       boot.scale.set(1, 1.3, 0.8);
       // Boot sole
-      const sole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.28), darkMat);
+      const sole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.28), isSummerLook ? accentMat : darkMat);
 
       if (isBike) {
         thigh.position.set(0, -0.15, 0);

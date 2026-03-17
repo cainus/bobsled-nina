@@ -5,6 +5,7 @@ import { TrackDecorations } from './TrackDecorations';
 
 const CHUNK_LENGTH = 40;
 const VISIBLE_AHEAD = 160;
+const SUMMER_RAMP_CHANCE = 0.14;
 
 // Possible lane heights
 const HEIGHTS = [0, 1.5, 3];
@@ -104,7 +105,7 @@ export class TrackManager {
     const isWaterSeason = season === 'spring' || season === 'summer';
 
     if (!isFlatChunk) {
-      const rampChance = season === 'spring' ? 1.0 : season === 'summer' ? 0.35 : 0.55;
+      const rampChance = season === 'spring' ? 1.0 : season === 'summer' ? SUMMER_RAMP_CHANCE : 0.55;
       for (let i = 0; i < 3; i++) {
         if (Math.random() < rampChance) {
           const candidates = HEIGHTS.filter(h => h !== startHeights[i]);
@@ -194,8 +195,8 @@ export class TrackManager {
 
           endHeights[li] = mY;
         } else {
-          // Summer: single ramp per chunk — longer flat segments
-          const rampStart = CHUNK_LENGTH * 0.3;
+          // Summer: single ramp per chunk, with rarer changes for longer rides.
+          const rampStart = CHUNK_LENGTH * 0.5;
           const rampEnd = rampStart + RAMP_LENGTH;
           const flatAfter = CHUNK_LENGTH - rampEnd;
 
