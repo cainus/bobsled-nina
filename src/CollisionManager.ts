@@ -29,6 +29,20 @@ export class CollisionManager {
           this.showBonus('+100', '#ff8800');
           continue;
         }
+
+        // Landing on top of an obstacle — bounce off instead of crashing
+        const playerBottom = playerBox.min.y;
+        const obstacleTop = obstacleBox.max.y;
+        if (this.game.player.isJumping && this.game.player.jumpVelocity < 0
+          && playerBottom >= obstacleTop - 0.5) {
+          this.game.player.jumpVelocity = 8;
+          this.game.soundManager.playLand();
+          obstacle.jumpScored = true;
+          this.game.score += 50;
+          this.showJumpBonus();
+          continue;
+        }
+
         const result = this.game.powerupManager.handleObstacleHit(obstacle);
         if (result === 'endGame') {
           this.game.endGame();

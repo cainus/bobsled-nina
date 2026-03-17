@@ -15,10 +15,16 @@ export class EnvironmentManager {
   private moon: THREE.Mesh | null = null;
   private npcSnowmobiles: THREE.Group[] = [];
   private headlight: THREE.SpotLight | null = null;
+  private motorboat: THREE.Group | null = null;
 
   private bears: { mesh: THREE.Group; hasGrowled: boolean }[] = [];
   private nextBearScore = 0;
   private springClouds: THREE.Group[] = [];
+
+  // Summer sun, glow, and clouds
+  private sunMesh: THREE.Mesh | null = null;
+  private sunGlow: THREE.Sprite | null = null;
+  private summerClouds: THREE.Mesh[] = [];
 
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
@@ -70,7 +76,7 @@ export class EnvironmentManager {
     if (season === 'spring') {
       groundMat.color.setHex(0x2a6688);
     } else if (season === 'summer') {
-      groundMat.color.setHex(0xf5deb3);
+      groundMat.color.setHex(0x1565c0);
     } else if (season === 'autumn') {
       groundMat.color.setHex(0x5a8a45);
     } else {
@@ -119,6 +125,38 @@ export class EnvironmentManager {
     }
     for (const npc of this.npcSnowmobiles) {
       npc.position.y = 0.1 + Math.sin(Date.now() * 0.002 + npc.position.x) * 0.05;
+    }
+
+    // NPC motorboat in summer — follows alongside the player on the ocean side
+    if (season === 'summer' && !this.motorboat) {
+      this.spawnMotorboat();
+    }
+    if (season !== 'summer' && this.motorboat) {
+      this.game.scene.remove(this.motorboat);
+      this.motorboat = null;
+    }
+    if (this.motorboat) {
+      const t = Date.now() * 0.001;
+      // Bob on waves
+      this.motorboat.position.y = 0.2 + Math.sin(t * 2) * 0.3;
+      this.motorboat.rotation.z = Math.sin(t * 1.5) * 0.05;
+      // Weave slightly in X
+      this.motorboat.position.x = -14 + Math.sin(t * 0.4) * 3;
+      // Stay alongside the player in Z
+      this.motorboat.position.z = 8 + Math.sin(t * 0.7) * 5;
+    }
+
+    // Summer sun, glow, and thin clouds
+    if (season === 'summer' && !this.sunMesh) {
+      this.createSummerSun();
+      this.spawnSummerClouds();
+    }
+    if (season !== 'summer' && this.sunMesh) {
+      this.removeSummerSun();
+      this.removeSummerClouds();
+    }
+    if (this.sunMesh && season === 'summer') {
+      this.updateSummerSun(time);
     }
 
     // Snowmobile headlight in the dark
@@ -379,6 +417,182 @@ export class EnvironmentManager {
     }
   }
 
+  private spawnMotorboat() {
+    const boat = new THREE.Group();
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: 0xdd2222 });
+
+    // Hull — elongated box tapered at front
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 3.5), hullMat);
+    hull.position.y = 0;
+    hull.castShadow = true;
+    boat.add(hull);
+
+    // Bow taper
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 4), hullMat);
+    bow.rotation.x = Math.PI / 2;
+    bow.rotation.y = Math.PI / 4;
+    bow.position.set(0, 0, 2.2);
+    bow.castShadow = true;
+    boat.add(bow);
+
+    // Red stripe
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.15, 3.5), accentMat);
+    stripe.position.y = 0.2;
+    boat.add(stripe);
+
+    // Windshield
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5, metalness: 0.5 });
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.08), glassMat);
+    windshield.position.set(0, 0.5, 0.5);
+    windshield.rotation.x = -0.3;
+    boat.add(windshield);
+
+    // Driver
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x8d5524 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: 0xff6600 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.3), shirtMat);
+    body.position.set(0, 0.7, -0.1);
+    boat.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), skinMat);
+    head.position.set(0, 1.1, -0.1);
+    boat.add(head);
+    // Sunglasses
+    const glassesMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.05), glassesMat);
+    glasses.position.set(0, 1.12, 0.08);
+    boat.add(glasses);
+
+    // Motor at back
+    const motorMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5 });
+    const motor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.3), motorMat);
+    motor.position.set(0, -0.1, -1.8);
+    boat.add(motor);
+
+    // Wake spray — white planes behind the boat
+    const wakeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+    for (const side of [-1, 1]) {
+      const wake = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 2), wakeMat);
+      wake.rotation.x = -Math.PI / 2;
+      wake.position.set(side * 0.5, -0.1, -2.5);
+      boat.add(wake);
+    }
+
+    boat.scale.setScalar(1.2);
+    boat.position.set(-14, 0.2, 8);
+    this.game.scene.add(boat);
+    this.motorboat = boat;
+  }
+
+  private createSummerSun() {
+    // Bright yellow sun sphere — behind the mountains
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffee55, depthTest: false });
+    this.sunMesh = new THREE.Mesh(new THREE.SphereGeometry(8, 16, 12), sunMat);
+    this.sunMesh.position.set(40, 50, 160);
+    this.sunMesh.renderOrder = -1;
+    this.game.scene.add(this.sunMesh);
+
+    // Additive-blended glow sprite around the sun
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255, 240, 180, 0.8)');
+    gradient.addColorStop(0.3, 'rgba(255, 220, 120, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 200, 80, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    const glowTexture = new THREE.CanvasTexture(canvas);
+    const glowMat = new THREE.SpriteMaterial({
+      map: glowTexture,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      depthWrite: false,
+    });
+    this.sunGlow = new THREE.Sprite(glowMat);
+    this.sunGlow.scale.set(40, 40, 1);
+    this.sunGlow.position.copy(this.sunMesh.position);
+    this.game.scene.add(this.sunGlow);
+  }
+
+  private updateSummerSun(time: TimeOfDay) {
+    if (!this.sunMesh || !this.sunGlow) return;
+
+    // Move sun based on time of day
+    let sunY: number;
+    let sunColor: number;
+    if (time === 'morning') {
+      sunY = 50;
+      sunColor = 0xffee55;
+    } else if (time === 'sunset') {
+      sunY = 8;
+      sunColor = 0xff8833;
+    } else {
+      // Night — hide below horizon
+      sunY = -20;
+      sunColor = 0xff6622;
+    }
+
+    this.sunMesh.position.y = sunY;
+    (this.sunMesh.material as THREE.MeshBasicMaterial).color.setHex(sunColor);
+    this.sunGlow.position.copy(this.sunMesh.position);
+
+    // Fade glow based on time
+    const glowMat = this.sunGlow.material as THREE.SpriteMaterial;
+    glowMat.opacity = time === 'night' ? 0 : time === 'sunset' ? 1.2 : 0.8;
+
+    // Drift summer clouds
+    for (const cloud of this.summerClouds) {
+      (cloud as any)._driftX ??= 0.3 + Math.random() * 0.5;
+      cloud.position.x += (cloud as any)._driftX * 0.01;
+      if (cloud.position.x > 80) cloud.position.x = -80;
+    }
+  }
+
+  private removeSummerSun() {
+    if (this.sunMesh) {
+      this.game.scene.remove(this.sunMesh);
+      this.sunMesh = null;
+    }
+    if (this.sunGlow) {
+      this.game.scene.remove(this.sunGlow);
+      this.sunGlow = null;
+    }
+  }
+
+  private spawnSummerClouds() {
+    const cloudMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    });
+    for (let i = 0; i < 5; i++) {
+      // Thin stretched plane as a wispy cloud
+      const width = 8 + Math.random() * 12;
+      const height = 0.8 + Math.random() * 1.2;
+      const cloud = new THREE.Mesh(new THREE.PlaneGeometry(width, height), cloudMat.clone());
+      cloud.rotation.x = -Math.PI / 2;
+      cloud.position.set(
+        (Math.random() - 0.5) * 120,
+        20 + Math.random() * 20,
+        30 + Math.random() * 60
+      );
+      // Slight random tilt
+      cloud.rotation.z = (Math.random() - 0.5) * 0.3;
+      this.game.scene.add(cloud);
+      this.summerClouds.push(cloud);
+    }
+  }
+
+  private removeSummerClouds() {
+    for (const cloud of this.summerClouds) {
+      this.game.scene.remove(cloud);
+    }
+    this.summerClouds = [];
+  }
+
   private removeNpcSnowmobiles() {
     for (const npc of this.npcSnowmobiles) {
       this.game.scene.remove(npc);
@@ -400,6 +614,10 @@ export class EnvironmentManager {
     this.prevSeason = 'winter';
     this.prevTime = 'morning';
     this.removeNpcSnowmobiles();
+    if (this.motorboat) {
+      this.game.scene.remove(this.motorboat);
+      this.motorboat = null;
+    }
     this.game.scene.background = new THREE.Color(0x87ceeb);
     this.game.scene.fog = new THREE.Fog(0x87ceeb, 60, 140);
     this.ambientLight.intensity = 0.6;
@@ -421,5 +639,7 @@ export class EnvironmentManager {
       if (glow) this.game.player.group.remove(glow);
     }
     this.removeSpringClouds();
+    this.removeSummerSun();
+    this.removeSummerClouds();
   }
 }

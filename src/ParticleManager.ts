@@ -24,6 +24,8 @@ export class ParticleManager {
   private blizzardActive = false;
   private rainDrops: THREE.Mesh[] = [];
   private rainActive = false;
+  private cameraDropTimer = 0;
+  private cameraDropElements: { el: HTMLElement; life: number }[] = [];
 
   private smallGeo = new THREE.SphereGeometry(0.06, 4, 4);
   private snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -53,9 +55,9 @@ export class ParticleManager {
       this.stopBlizzardFlakes();
     }
 
-    // Rain in spring (second half — sunset and night)
+    // Rain in spring (all times of day)
     const isSpring = this.game.seasonManager.season === 'spring';
-    const springRainTime = isSpring && (this.game.seasonManager.timeOfDay === 'sunset' || this.game.seasonManager.timeOfDay === 'night');
+    const springRainTime = isSpring;
     if (springRainTime && !this.rainActive) {
       this.startRain();
     } else if (!springRainTime && this.rainActive) {
@@ -272,8 +274,8 @@ export class ParticleManager {
     this.rainActive = true;
     const playerZ = this.game.player.group.position.z;
     const rainMat = new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.6 });
-    const rainGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.3, 4);
-    for (let i = 0; i < 200; i++) {
+    const rainGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.4, 4);
+    for (let i = 0; i < 1500; i++) {
       const drop = new THREE.Mesh(rainGeo, rainMat);
       drop.position.set(
         (Math.random() - 0.5) * 40,
@@ -288,7 +290,7 @@ export class ParticleManager {
   private updateRain(dt: number) {
     const playerZ = this.game.player.group.position.z;
     for (const drop of this.rainDrops) {
-      drop.position.y -= 25 * dt;
+      drop.position.y -= 30 * dt;
       if (drop.position.y < 0 || drop.position.z < playerZ - 15) {
         drop.position.set(
           (Math.random() - 0.5) * 40,
@@ -297,6 +299,45 @@ export class ParticleManager {
         );
       }
     }
+
+    // Camera raindrop splashes
+    this.cameraDropTimer -= dt;
+    if (this.cameraDropTimer <= 0) {
+      this.cameraDropTimer = 0.1 + Math.random() * 0.3;
+      this.spawnCameraDrop();
+    }
+
+    // Update existing camera drops
+    for (let i = this.cameraDropElements.length - 1; i >= 0; i--) {
+      const cd = this.cameraDropElements[i];
+      cd.life -= dt;
+      if (cd.life <= 0) {
+        cd.el.remove();
+        this.cameraDropElements.splice(i, 1);
+      } else {
+        cd.el.style.opacity = String(cd.life * 0.8);
+      }
+    }
+  }
+
+  private spawnCameraDrop() {
+    const el = document.createElement('div');
+    const size = 30 + Math.random() * 60;
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    el.style.cssText = `
+      position: fixed;
+      left: ${x}%;
+      top: ${y}%;
+      width: ${size}px;
+      height: ${size * 1.3}px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(180,200,220,0.3) 0%, rgba(180,200,220,0.1) 40%, transparent 70%);
+      pointer-events: none;
+      z-index: 10;
+    `;
+    document.body.appendChild(el);
+    this.cameraDropElements.push({ el, life: 0.8 + Math.random() * 0.6 });
   }
 
   private stopRain() {
@@ -305,6 +346,10 @@ export class ParticleManager {
       this.game.scene.remove(drop);
     }
     this.rainDrops = [];
+    for (const cd of this.cameraDropElements) {
+      cd.el.remove();
+    }
+    this.cameraDropElements = [];
   }
 
   reset() {

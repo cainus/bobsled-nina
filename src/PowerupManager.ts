@@ -307,7 +307,7 @@ export class PowerupManager {
     visor.rotation.x = -0.5;
     this.helmetMesh.add(visor);
 
-    this.helmetMesh.scale.setScalar(1.15);
+    this.helmetMesh.scale.setScalar(1.5);
     this.helmetMesh.position.set(0, 1.46, 0);
     this.game.player.character.add(this.helmetMesh);
     this.game.player.setBlackHelmetVisible(false);

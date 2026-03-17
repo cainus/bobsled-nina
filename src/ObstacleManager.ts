@@ -9,10 +9,12 @@ export interface Obstacle {
   isSnowman?: boolean;
   isPineTree?: boolean;
   isBonus?: boolean;
+  lane?: number; // track lane for spring wave offset
+  floatsOnWave?: boolean; // if true, follows spring wave; if false, stays at base height
 }
 
 type ObstacleType = 'rock' | 'snowman' | 'pineTree' | 'lowObstacle' | 'treeBranch' | 'largeTree'
-  | 'floaty' | 'turtle' | 'seashell' | 'leafPile' | 'oakTree' | 'log' | 'buoy';
+  | 'floaty' | 'turtle' | 'seashell' | 'leafPile' | 'oakTree' | 'log' | 'buoy' | 'wideRock';
 
 export class ObstacleManager {
   game: Game;
@@ -44,6 +46,18 @@ export class ObstacleManager {
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
       obs.mesh.position.z -= moveAmount;
+
+      // Spring: logs float on the wave, rocks stay at track floor
+      if (obs.lane !== undefined && this.game.seasonManager.season === 'spring') {
+        if (obs.floatsOnWave) {
+          const wave = this.game.trackManager.getSpringWaveOffset(obs.lane);
+          const laneY = this.game.laneHeightMap.getHeight(obs.lane, obs.mesh.position.z);
+          obs.mesh.position.y = laneY + wave;
+        } else {
+          obs.mesh.position.y = this.game.trackManager.currentBaseY;
+        }
+      }
+
       // Remove if behind camera
       if (obs.mesh.position.z < -15) {
         obs.active = false;
@@ -59,7 +73,7 @@ export class ObstacleManager {
     const season = this.game.seasonManager.season;
     let types: ObstacleType[];
     if (season === 'spring') {
-      types = ['rock', 'log', 'treeBranch'];
+      types = ['rock', 'log', 'treeBranch', 'wideRock'];
     } else if (season === 'summer') {
       types = ['rock', 'floaty', 'buoy', 'seashell'];
     } else if (season === 'autumn') {
@@ -94,6 +108,27 @@ export class ObstacleManager {
       return;
     }
 
+    if (type === 'wideRock') {
+      // Wide rock spans 2 adjacent lanes — pinned to track floor
+      const lanes = [-1, 0, 1].filter(
+        lane => !this.game.laneHeightMap.isOnOrNearRamp(lane, this.spawnZ)
+      );
+      if (lanes.length < 2) return;
+      const pairs: [number, number][] = [];
+      if (lanes.includes(-1) && lanes.includes(0)) pairs.push([-1, 0]);
+      if (lanes.includes(0) && lanes.includes(1)) pairs.push([0, 1]);
+      if (pairs.length === 0) return;
+      const pair = pairs[Math.floor(Math.random() * pairs.length)];
+      const centerX = ((pair[0] + pair[1]) / 2) * this.game.laneWidth;
+      const floorY = season === 'spring' ? this.game.trackManager.currentBaseY
+        : this.game.laneHeightMap.getHeight(pair[0], this.spawnZ);
+      const rock = this.createWideRock();
+      rock.position.set(centerX, floorY, this.spawnZ);
+      this.game.scene.add(rock);
+      this.obstacles.push({ mesh: rock, active: true, lane: pair[0], floatsOnWave: false });
+      return;
+    }
+
     if (type === 'treeBranch') {
       // Tree branch spans 1-2 lanes from one side — must duck under
       const numLanes = Math.random() > 0.5 ? 2 : 1;
@@ -116,10 +151,22 @@ export class ObstacleManager {
 
       for (const lane of blockedLanes) {
         const mesh = this.createObstacle(type);
-        const laneY = this.game.laneHeightMap.getHeight(lane, this.spawnZ);
+        const isSpring = season === 'spring';
+        const floats = isSpring && type === 'log';
+        const isRock = type === 'rock';
+        let spawnY: number;
+        if (isSpring && isRock) {
+          // Rocks sit on the track floor (baseY), not on elevated lanes
+          spawnY = this.game.trackManager.currentBaseY;
+        } else if (floats) {
+          spawnY = this.game.laneHeightMap.getHeight(lane, this.spawnZ)
+            + this.game.trackManager.getSpringWaveOffset(lane);
+        } else {
+          spawnY = this.game.laneHeightMap.getHeight(lane, this.spawnZ);
+        }
         mesh.position.set(
           lane * this.game.laneWidth,
-          laneY,
+          spawnY,
           this.spawnZ
         );
         this.game.scene.add(mesh);
@@ -128,6 +175,8 @@ export class ObstacleManager {
           isSnowman: type === 'snowman',
           isPineTree: type === 'pineTree',
           isBonus: type === 'leafPile',
+          lane: isSpring ? lane : undefined,
+          floatsOnWave: floats,
         });
       }
     }
@@ -578,6 +627,44 @@ export class ObstacleManager {
       const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.6, 8), snowMat);
       cap.position.y = 8.5;
       group.add(cap);
+    }
+
+    return group;
+  }
+
+  private createWideRock(): THREE.Group {
+    const group = new THREE.Group();
+    const laneW = this.game.laneWidth;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.9 });
+
+    // Main wide boulder
+    const main = new THREE.Mesh(new THREE.DodecahedronGeometry(1.4, 1), mat);
+    main.position.y = 0.9;
+    main.scale.set(laneW * 0.5, 0.7, 0.9);
+    main.rotation.set(0.2, 0.5, 0.1);
+    main.castShadow = true;
+    group.add(main);
+
+    // Secondary rocks on each side
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.95 });
+    for (const side of [-1, 1]) {
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), darkMat);
+      rock.position.set(side * 1.2, 0.6, (Math.random() - 0.5) * 0.5);
+      rock.rotation.set(Math.random(), Math.random(), Math.random());
+      rock.scale.set(1, 0.8, 1.1);
+      rock.castShadow = true;
+      group.add(rock);
+    }
+
+    // Moss patches
+    const mossMat = new THREE.MeshStandardMaterial({ color: 0x4a7a3a, roughness: 0.9 });
+    for (let i = 0; i < 3; i++) {
+      const moss = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.3),
+        mossMat
+      );
+      moss.position.set((Math.random() - 0.5) * 2, 1.2 + Math.random() * 0.3, (Math.random() - 0.5) * 0.5);
+      group.add(moss);
     }
 
     return group;

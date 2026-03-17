@@ -14,6 +14,7 @@ export class Player {
   // Jump
   isJumping = false;
   jumpVelocity = 0;
+  isOnWaterfallDrop = false;
   private readonly jumpForce = 12;
   private readonly gravity = -30;
   private groundY = 0.5;
@@ -49,6 +50,10 @@ export class Player {
   private blackHelmetGroup: THREE.Group | null = null;
   private leftLeg: THREE.Group | null = null;
   private rightLeg: THREE.Group | null = null;
+
+  private isWaterVehicle(): boolean {
+    return this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
+  }
 
   constructor(game: Game) {
     this.game = game;
@@ -1045,7 +1050,7 @@ export class Player {
     this.leftLeg = null;
     this.rightLeg = null;
     const isBike = this.currentVehicle === 'mountainBike';
-    const isKayak = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
+    const isKayak = this.isWaterVehicle();
     const legSides: [number, THREE.Group | null][] = [];
 
     for (const side of [-0.15, 0.15]) {
@@ -1108,7 +1113,7 @@ export class Player {
     }
 
     // Kayak/canoe seated position: lower body, legs stretched forward
-    if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe') {
+    if (this.isWaterVehicle()) {
       this.character.position.y = -0.25;
       this.character.rotation.x = -0.3; // lean back slightly
     }
@@ -1268,8 +1273,9 @@ export class Player {
       }
       this.doubleJumpReady = input.doubleJump;
       const onRamp = this.game.laneHeightMap.isUpRamp(this.targetLane, 0);
-      const rampBoost = onRamp ? 2 : 1;
-      this.jumpVelocity = this.jumpForce * this.jumpMultiplier * rampBoost;
+      const isSpring = this.game.seasonManager.season === 'spring';
+      const rampBoost = onRamp ? (isSpring ? 1.7 : 2) : 1;
+      this.jumpVelocity = this.jumpForce * this.jumpMultiplier * rampBoost * (isSpring ? 0.85 : 1);
       this.isDucking = false;
       this.character.scale.copy(this.normalCharacterScale);
       this.game.soundManager.playGrunt();
@@ -1293,18 +1299,20 @@ export class Player {
     this.group.position.x += (targetX - this.group.position.x) * this.laneTransitionSpeed * dt;
     this.currentLane = this.targetLane;
 
-    // Get ground height from lane height map
+    // Get ground height from lane height map + spring wave
     const laneHeight = this.game.laneHeightMap.getHeight(this.targetLane, 0);
-    this.groundY = laneHeight + 0.5;
+    const waveOffset = this.game.trackManager.getSpringWaveOffset(this.targetLane);
+    this.groundY = laneHeight + 0.5 + waveOffset;
 
     // Ramp launch — pop into the air after cresting an up ramp
     const onUpRamp = this.game.laneHeightMap.isUpRamp(this.targetLane, 0);
+    const springDampen = this.game.seasonManager.season === 'spring' ? 0.75 : 1;
     if (this.wasOnUpRamp && !onUpRamp && !this.isJumping) {
       this.isJumping = true;
       this.landSoundPlayed = false;
       if (this.doubleJumpReady) {
         // Double-tap on ramp = super jump with trick
-        this.jumpVelocity = this.rampLaunchForce * 2.0;
+        this.jumpVelocity = this.rampLaunchForce * 2.0 * springDampen;
         this.doubleJumpReady = false;
         this.game.soundManager.playGrunt();
         const trick = Math.random();
@@ -1320,7 +1328,7 @@ export class Player {
           this.spinAngle = 0;
         }
       } else {
-        this.jumpVelocity = this.rampLaunchForce;
+        this.jumpVelocity = this.rampLaunchForce * springDampen;
       }
     }
     this.wasOnUpRamp = onUpRamp;
@@ -1330,7 +1338,7 @@ export class Player {
       // Play land sound slightly early when about to hit ground
       const nextY = this.group.position.y + this.jumpVelocity * dt;
       if (this.jumpVelocity < 0 && !this.landSoundPlayed && nextY <= this.groundY + 0.3) {
-        if (this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe') {
+        if (this.isWaterVehicle()) {
           this.game.soundManager.playSplash();
         } else {
           this.game.soundManager.playLand();
@@ -1361,13 +1369,14 @@ export class Player {
         const fallSpeed = Math.abs(this.jumpVelocity);
         this.group.position.y = this.groundY;
         this.isJumping = false;
+        this.isOnWaterfallDrop = false;
         this.jumpVelocity = 0;
         this.spinning = false;
         this.backflipping = false;
         this.group.rotation.x = 0;
         this.group.rotation.y = 0;
         // Landing dip for water vehicles — scales with fall speed
-        const inWater = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
+        const inWater = this.isWaterVehicle();
         if (inWater) {
           const bigDrop = fallSpeed > 10;
           this.landingDipDuration = bigDrop ? 1.4 : 0.8;
@@ -1424,7 +1433,7 @@ export class Player {
     }
 
     // Bobbing motion
-    const inWaterVehicle = this.currentVehicle === 'kayak' || this.currentVehicle === 'rainbowKayak' || this.currentVehicle === 'canoe';
+    const inWaterVehicle = this.isWaterVehicle();
     if (inWaterVehicle && !this.isJumping) {
       // Constant water bobbing
       const bob = Math.sin(Date.now() * 0.005) * 0.1;

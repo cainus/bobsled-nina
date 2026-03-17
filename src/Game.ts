@@ -49,6 +49,10 @@ export class Game {
   private cameraCurrentY = 10;
   private cameraLookDownOffset = 0;
 
+  // Slow motion for waterfall drops
+  private slowMoFactor = 1;
+  private slowMoTarget = 1;
+
   private ambientLight!: THREE.AmbientLight;
   private sunLight!: THREE.DirectionalLight;
   groundMesh!: THREE.Mesh;
@@ -196,30 +200,40 @@ export class Game {
     const autumnTexture = isAutumn ? this.createAutumnTreeTexture() : null;
 
     for (const peak of peaks) {
-      const geo = new THREE.ConeGeometry(peak.size, peak.height, 12);
+      // Summer mountains are smaller, rounded hills
+      const peakSize = isSummer ? peak.size * 0.6 : peak.size;
+      const peakHeight = isSummer ? peak.height * 0.6 : peak.height;
+      const geo = isSummer
+        ? new THREE.SphereGeometry(peakSize, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)
+        : new THREE.ConeGeometry(peakSize, peakHeight, 12);
 
       if (isAutumn) {
         const autumnMat = new THREE.MeshStandardMaterial({ map: autumnTexture });
         const mountain = new THREE.Mesh(geo, autumnMat);
-        mountain.position.set(peak.x, peak.height / 2 - 5, peak.z);
+        mountain.position.set(peak.x, peakHeight / 2 - 5, peak.z);
         mountain.rotation.y = Math.random() * Math.PI;
         this.scene.add(mountain);
         this.mountainMeshes.push(mountain);
       } else {
         const mountain = new THREE.Mesh(geo, mountainMat);
-        mountain.position.set(peak.x, peak.height / 2 - 5, peak.z);
+        mountain.position.set(peak.x, isSummer ? -3 : peakHeight / 2 - 5, peak.z);
+        if (isSummer) mountain.scale.set(1, 0.5, 1); // flatten the domes
         mountain.rotation.y = Math.random() * Math.PI;
         this.scene.add(mountain);
         this.mountainMeshes.push(mountain);
-        const capColor = isSummer ? 0x4a8a3f : 0xf0f4f8;
-        const capSize = peak.size * 0.5;
-        const capHeight = peak.height * 0.4;
-        const capGeo = new THREE.ConeGeometry(capSize, capHeight, 12);
-        const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: capColor }));
-        cap.position.set(peak.x, peak.height - 5 - capHeight / 2, peak.z);
-        cap.rotation.y = mountain.rotation.y;
-        this.scene.add(cap);
-        this.mountainMeshes.push(cap);
+
+        // Skip caps for summer — green mountains with no snow/cap
+        if (!isSummer) {
+          const capColor = 0xf0f4f8;
+          const capSize = peakSize * 0.5;
+          const capHeight2 = peakHeight * 0.4;
+          const capGeo = new THREE.ConeGeometry(capSize, capHeight2, 12);
+          const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: capColor }));
+          cap.position.set(peak.x, peakHeight - 5 - capHeight2 / 2, peak.z);
+          cap.rotation.y = mountain.rotation.y;
+          this.scene.add(cap);
+          this.mountainMeshes.push(cap);
+        }
       }
     }
 
@@ -340,6 +354,8 @@ export class Game {
     this.score = 0;
     this.cameraCurrentY = 10;
     this.cameraLookDownOffset = 0;
+    this.slowMoFactor = 1;
+    this.slowMoTarget = 1;
     this.coins = 0;
     this._baseSpeed = this.baseSpeed;
     this.speed = this.baseSpeed;
@@ -399,7 +415,14 @@ export class Game {
     if (!this.running) return;
 
     const delta = this.clock.getDelta();
-    const dt = Math.min(delta, 0.05);
+    const rawDt = Math.min(delta, 0.05);
+
+    // Slow motion during waterfall drops — affects everything
+    const waterfallFalling = this.trackManager.isNearWaterfall()
+      && this.player.isJumping && this.player.jumpVelocity < 0;
+    this.slowMoTarget = waterfallFalling ? 0.3 : 1;
+    this.slowMoFactor += (this.slowMoTarget - this.slowMoFactor) * Math.min(rawDt * 4, 1);
+    const dt = rawDt * this.slowMoFactor;
 
     // Dynamic steepness
     this.environmentManager.updateSteepness(dt);
@@ -408,14 +431,10 @@ export class Game {
     // Update camera — smooth follow for waterfall drops
     const playerGroundY = this.laneHeightMap.getHeight(this.player.targetLane, 0);
     const targetCamY = playerGroundY + 10 + steepness * 4;
-    this.cameraCurrentY += (targetCamY - this.cameraCurrentY) * Math.min(dt * 3, 1);
+    this.cameraCurrentY += (targetCamY - this.cameraCurrentY) * Math.min(rawDt * 3, 1);
     this.camera.position.y = this.cameraCurrentY;
 
-    // Tilt camera to look over player during falls
-    const isFalling = this.player.isJumping && this.player.jumpVelocity < -2;
-    const targetLookDown = isFalling ? -2.0 : 0;
-    this.cameraLookDownOffset += (targetLookDown - this.cameraLookDownOffset) * Math.min(dt * 4, 1);
-    const lookY = playerGroundY + 2 - steepness * 4 + this.cameraLookDownOffset;
+    const lookY = playerGroundY + 2 - steepness * 4;
     this.camera.lookAt(0, lookY, 25);
 
     // Move background elements to follow waterfall drops
@@ -430,7 +449,7 @@ export class Game {
     const steepnessBoost = steepness * 12;
     const snowmobileBoost = this.isSnowmobile ? this.maxSpeed * 1.0 : 0;
     this._baseSpeed = Math.min(this._baseSpeed + this.acceleration * dt, this.maxSpeed + steepnessBoost + snowmobileBoost);
-    this.speed = this.metalMode ? this._baseSpeed * 1.5 : this._baseSpeed;
+    this.speed = this.metalMode ? this._baseSpeed * 1.25 : this._baseSpeed;
 
     // Process input
     const input = this.inputManager.consume();
