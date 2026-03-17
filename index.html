@@ -87,7 +87,19 @@
     }
     .btn:hover { transform: scale(1.05); }
     .btn:active { transform: scale(0.95); }
-    .season-btn { background: linear-gradient(135deg, #ff6b9d, #c44dff); }
+    .season-btn {
+      background-size: cover;
+      background-position: center;
+      width: 200px; height: 200px;
+      border-radius: 12px;
+      border: 3px solid rgba(255,255,255,0.3);
+      display: flex; align-items: flex-end; justify-content: center;
+      padding-bottom: 8px;
+      font-size: 16px;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+      transition: transform 0.1s, border-color 0.15s;
+    }
+    .season-btn:hover { transform: scale(1.08); border-color: #fff; }
     .controls-hint {
       color: #888;
       font-size: 16px;
@@ -113,15 +125,14 @@
     <div id="metal-display" style="display:none">METAL MODE 2x</div>
 
     <div id="start-screen">
-      <h1>Naña's <span>Run</span></h1>
-      <div class="subtitle">An endless downhill adventure!</div>
+      <img id="splash-img" src="images/Splash.png" alt="Naña's Run" style="max-width:min(700px,90vw);max-height:55vh;object-fit:contain;margin-bottom:24px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.6)">
       <div id="season-picker" style="display:none;margin-bottom:24px">
         <div class="subtitle" style="margin-bottom:10px;color:#aad4ff">Pick a season to start</div>
-        <div style="display:flex;gap:12px">
-          <button class="btn season-btn" data-season="winter" style="padding:10px 22px;font-size:18px">Winter</button>
-          <button class="btn season-btn" data-season="spring" style="padding:10px 22px;font-size:18px">Spring</button>
-          <button class="btn season-btn" data-season="summer" style="padding:10px 22px;font-size:18px">Summer</button>
-          <button class="btn season-btn" data-season="autumn" style="padding:10px 22px;font-size:18px">Autumn</button>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+          <button class="btn season-btn" data-season="winter" style="background-image:url('images/winter.jpg')">Winter</button>
+          <button class="btn season-btn" data-season="spring" style="background-image:url('images/spring.jpg')">Spring</button>
+          <button class="btn season-btn" data-season="summer" style="background-image:url('images/summer.jpg')">Summer</button>
+          <button class="btn season-btn" data-season="autumn" style="background-image:url('images/autumn.jpg')">Autumn</button>
         </div>
       </div>
       <div id="loading-text" class="subtitle" style="color:#ff6b9d">Loading... 0%</div>

@@ -437,20 +437,26 @@ export class TrackDecorations {
       opacity: 0.88,
     });
 
-    // Water on both sides, flush against the track
+    // Water on both sides as extra "lanes" that bob with the wave system
     for (const side of [-1, 1]) {
+      const laneGroup = new THREE.Group();
+      laneGroup.userData = { springLane: side * 4, springBaseY: 0 };
       const waterGeo = new THREE.PlaneGeometry(30, CHUNK_LENGTH);
       const water = new THREE.Mesh(waterGeo, waterMat);
       water.rotation.x = -Math.PI / 2;
       water.position.set(side * (trackWidth / 2 + 16), -0.1, CHUNK_LENGTH / 2);
-      chunk.add(water);
+      laneGroup.add(water);
+      chunk.add(laneGroup);
     }
 
     // Open ocean extends further on the left
+    const deepGroup = new THREE.Group();
+    deepGroup.userData = { springLane: -8, springBaseY: 0 };
     const deepWater = new THREE.Mesh(new THREE.PlaneGeometry(60, CHUNK_LENGTH), waterMat);
     deepWater.rotation.x = -Math.PI / 2;
     deepWater.position.set(-(trackWidth / 2 + 61), -0.1, CHUNK_LENGTH / 2);
-    chunk.add(deepWater);
+    deepGroup.add(deepWater);
+    chunk.add(deepGroup);
 
     // Sand beach right (closer to track)
     const sandMat = new THREE.MeshStandardMaterial({ color: 0xf5deb3 });

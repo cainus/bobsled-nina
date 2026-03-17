@@ -754,6 +754,7 @@ export class TrackManager {
         }
       }
     }
+
   }
 
   isNearWaterfall(): boolean {
