@@ -50,7 +50,7 @@
       font-weight: bold;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
     }
-    #start-screen, #game-over-screen, #pause-screen {
+    #start-screen, #game-over-screen, #pause-screen, #character-screen {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
@@ -60,7 +60,29 @@
       background: rgba(0,0,0,0.7);
       pointer-events: all;
     }
-    #game-over-screen, #pause-screen { display: none; }
+    #game-over-screen, #pause-screen, #character-screen { display: none; }
+    #character-screen {
+      background: transparent;
+      pointer-events: all;
+    }
+    #character-vehicle-name {
+      position: absolute;
+      bottom: 60px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 32px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+    }
+    #character-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 0; right: 0;
+      text-align: center;
+      color: #888;
+      font-size: 16px;
+    }
     h1 {
       font-size: 72px;
       color: #fff;
@@ -146,6 +168,11 @@
       <h1>Paused</h1>
       <button class="btn" id="continue-btn" style="margin-bottom:16px">CONTINUE</button>
       <button class="btn" id="pause-restart-btn">RESTART</button>
+    </div>
+
+    <div id="character-screen">
+      <div id="character-vehicle-name">Skis</div>
+      <div id="character-hint">← → to change vehicle &nbsp;|&nbsp; Esc to go back</div>
     </div>
 
     <div id="game-over-screen">

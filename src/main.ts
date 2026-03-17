@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { Game } from './Game';
 import type { Season } from './SeasonManager';
 
@@ -6,10 +7,95 @@ const loadingBar = document.getElementById('loading-bar')!;
 const loadingBarBg = document.getElementById('loading-bar-bg')!;
 const controlsHint = document.getElementById('controls-hint')!;
 const seasonPicker = document.getElementById('season-picker')!;
+const characterScreen = document.getElementById('character-screen')!;
+const characterVehicleName = document.getElementById('character-vehicle-name')!;
 
 const game = new Game();
 
 let hasPlayed = false;
+
+// --- Character viewer ---
+const ALL_VEHICLES = ['skis', 'rainbowSkis', 'bobsled', 'snowboard', 'mountainBike', 'motorbike', 'kayak', 'rainbowKayak', 'canoe', 'jetski'] as const;
+type VehicleType = typeof ALL_VEHICLES[number];
+const VEHICLE_LABELS: Record<VehicleType, string> = {
+  skis: 'Skis', rainbowSkis: 'Rainbow Skis', bobsled: 'Bobsled', snowboard: 'Snowboard',
+  mountainBike: 'Mountain Bike', motorbike: 'Motorbike', kayak: 'Kayak',
+  rainbowKayak: 'Rainbow Kayak', canoe: 'Canoe', jetski: 'Jet Ski',
+};
+let charViewActive = false;
+let charViewIndex = 0;
+let charViewScene: THREE.Scene | null = null;
+let charViewCamera: THREE.PerspectiveCamera | null = null;
+let charViewGroup: THREE.Group | null = null;
+let charViewRafId = 0;
+let charViewLoaded = false;
+
+function openCharacterViewer() {
+  if (!charViewLoaded) return;
+  charViewActive = true;
+  document.getElementById('start-screen')!.style.display = 'none';
+  characterScreen.style.display = 'flex';
+
+  charViewScene = new THREE.Scene();
+  charViewScene.background = new THREE.Color(0x1a1a2e);
+
+  charViewCamera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+  charViewCamera.position.set(0, 2.5, 6);
+  charViewCamera.lookAt(0, 1.5, 0);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  charViewScene.add(ambient);
+  const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+  dir.position.set(3, 5, 4);
+  charViewScene.add(dir);
+
+  charViewGroup = new THREE.Group();
+  charViewScene.add(charViewGroup);
+
+  charViewIndex = ALL_VEHICLES.indexOf(game.player.currentVehicle);
+  if (charViewIndex < 0) charViewIndex = 0;
+  showCharViewVehicle();
+
+  function animate() {
+    charViewRafId = requestAnimationFrame(animate);
+    if (charViewGroup) charViewGroup.rotation.y += 0.01;
+    game.renderer.render(charViewScene!, charViewCamera!);
+  }
+  animate();
+}
+
+function showCharViewVehicle() {
+  if (!charViewGroup) return;
+  while (charViewGroup.children.length) charViewGroup.remove(charViewGroup.children[0]);
+
+  const vehicleType = ALL_VEHICLES[charViewIndex];
+  // Build a temporary player to extract the mesh
+  const tempGroup = new THREE.Group();
+  const tempPlayer = Object.create(game.player);
+  tempPlayer.group = tempGroup;
+  tempPlayer.currentVehicle = 'skis';
+  // Use the real buildVehicle + buildCharacter by calling switchVehicle on a clone
+  // Simpler: just use game.player.switchVehicle temporarily
+  game.player.group.visible = false;
+  game.player.switchVehicle(vehicleType);
+  // Clone the player group contents into the viewer
+  for (const child of game.player.group.children) {
+    charViewGroup.add(child.clone());
+  }
+
+  characterVehicleName.textContent = VEHICLE_LABELS[vehicleType];
+}
+
+function closeCharacterViewer() {
+  charViewActive = false;
+  cancelAnimationFrame(charViewRafId);
+  characterScreen.style.display = 'none';
+  document.getElementById('start-screen')!.style.display = 'flex';
+  game.player.group.visible = true;
+  charViewScene = null;
+  charViewCamera = null;
+  charViewGroup = null;
+}
 
 function startWithSeason(season: Season) {
   document.getElementById('start-screen')!.style.display = 'none';
@@ -32,6 +118,7 @@ game.load((pct) => {
   loadingBarBg.style.display = 'none';
   seasonPicker.style.display = '';
   controlsHint.style.display = '';
+  charViewLoaded = true;
 });
 
 // Season buttons start the game directly
@@ -49,8 +136,33 @@ document.getElementById('restart-btn')!.addEventListener('click', () => {
   controlsHint.style.display = '';
 });
 
-// Pause menu and screenshot
+// Pause menu, screenshot, and character viewer
 window.addEventListener('keydown', (e) => {
+  // Character viewer controls
+  if (charViewActive) {
+    if (e.key === 'Escape') {
+      closeCharacterViewer();
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      charViewIndex = (charViewIndex + 1) % ALL_VEHICLES.length;
+      showCharViewVehicle();
+      return;
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      charViewIndex = (charViewIndex - 1 + ALL_VEHICLES.length) % ALL_VEHICLES.length;
+      showCharViewVehicle();
+      return;
+    }
+    return;
+  }
+
+  // Open character viewer from start screen
+  if ((e.key === 'c' || e.key === 'C') && document.getElementById('start-screen')!.style.display !== 'none') {
+    openCharacterViewer();
+    return;
+  }
+
   if (e.key === 'Escape' && game.running) {
     game.pause();
   }
