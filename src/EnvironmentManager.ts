@@ -156,7 +156,7 @@ export class EnvironmentManager {
       this.removeSummerClouds();
     }
     if (this.sunMesh && season === 'summer') {
-      this.updateSummerSun(time);
+      this.updateSummerSun();
     }
 
     // Snowmobile headlight in the dark
@@ -516,31 +516,30 @@ export class EnvironmentManager {
     this.game.scene.add(this.sunGlow);
   }
 
-  private updateSummerSun(time: TimeOfDay) {
+  private updateSummerSun() {
     if (!this.sunMesh || !this.sunGlow) return;
 
-    // Move sun based on time of day
-    let sunY: number;
-    let sunColor: number;
-    if (time === 'morning') {
-      sunY = 50;
-      sunColor = 0xffee55;
-    } else if (time === 'sunset') {
-      sunY = 8;
-      sunColor = 0xff8833;
+    const seasonProgress = this.game.seasonManager.getSeasonProgress(this.game.score);
+    const sunY = 52 - seasonProgress * 72;
+    const sunColor = new THREE.Color(0xffee55);
+    const sunsetColor = new THREE.Color(0xff8833);
+    const nightColor = new THREE.Color(0xff6622);
+
+    if (seasonProgress < 0.65) {
+      const t = seasonProgress / 0.65;
+      sunColor.lerp(sunsetColor, t * 0.45);
     } else {
-      // Night — hide below horizon
-      sunY = -20;
-      sunColor = 0xff6622;
+      const t = (seasonProgress - 0.65) / 0.35;
+      sunColor.copy(sunsetColor).lerp(nightColor, t);
     }
 
     this.sunMesh.position.y = sunY;
-    (this.sunMesh.material as THREE.MeshBasicMaterial).color.setHex(sunColor);
+    (this.sunMesh.material as THREE.MeshBasicMaterial).color.copy(sunColor);
     this.sunGlow.position.copy(this.sunMesh.position);
 
-    // Fade glow based on time
+    // Fade glow as the sun drops below the horizon.
     const glowMat = this.sunGlow.material as THREE.SpriteMaterial;
-    glowMat.opacity = time === 'night' ? 0 : time === 'sunset' ? 1.2 : 0.8;
+    glowMat.opacity = Math.max(0, 1.1 - seasonProgress * 0.9);
 
     // Drift summer clouds
     for (const cloud of this.summerClouds) {

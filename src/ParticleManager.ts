@@ -321,22 +321,10 @@ export class ParticleManager {
   }
 
   private spawnCameraDrop() {
-    const el = document.createElement('div');
     const size = 30 + Math.random() * 60;
     const x = Math.random() * 100;
     const y = Math.random() * 100;
-    el.style.cssText = `
-      position: fixed;
-      left: ${x}%;
-      top: ${y}%;
-      width: ${size}px;
-      height: ${size * 1.3}px;
-      border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(180,200,220,0.3) 0%, rgba(180,200,220,0.1) 40%, transparent 70%);
-      pointer-events: none;
-      z-index: 10;
-    `;
-    document.body.appendChild(el);
+    const el = this.game.hud.createCameraDrop(size, x, y);
     this.cameraDropElements.push({ el, life: 0.8 + Math.random() * 0.6 });
   }
 

@@ -80,26 +80,24 @@ export class CollisionManager {
   }
 
   private showBonus(text: string, color: string) {
-    const el = document.createElement('div');
-    el.textContent = text;
-    el.style.cssText = `position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:${color};font-size:36px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.6s ease-out;opacity:1;`;
-    document.getElementById('ui-overlay')!.appendChild(el);
-    requestAnimationFrame(() => {
-      el.style.top = '30%';
-      el.style.opacity = '0';
+    this.game.hud.showFloatingText({
+      text,
+      color,
+      top: '40%',
+      targetTop: '30%',
+      fontSize: '36px',
+      durationMs: 700,
     });
-    setTimeout(() => el.remove(), 700);
   }
 
   private showJumpBonus() {
-    const el = document.createElement('div');
-    el.textContent = '+50';
-    el.style.cssText = 'position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:36px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.6s ease-out;opacity:1;';
-    document.getElementById('ui-overlay')!.appendChild(el);
-    requestAnimationFrame(() => {
-      el.style.top = '30%';
-      el.style.opacity = '0';
+    this.game.hud.showFloatingText({
+      text: '+50',
+      color: '#ffd700',
+      top: '40%',
+      targetTop: '30%',
+      fontSize: '36px',
+      durationMs: 700,
     });
-    setTimeout(() => el.remove(), 700);
   }
 }

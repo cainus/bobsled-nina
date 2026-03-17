@@ -11,6 +11,7 @@ import { PowerupManager } from './PowerupManager';
 import { EnvironmentManager } from './EnvironmentManager';
 import { CollisionManager } from './CollisionManager';
 import { SeasonManager } from './SeasonManager';
+import { Hud } from './Hud';
 
 export class Game {
   scene: THREE.Scene;
@@ -28,6 +29,7 @@ export class Game {
   environmentManager: EnvironmentManager;
   collisionManager: CollisionManager;
   seasonManager: SeasonManager;
+  hud: Hud;
 
   clock: THREE.Clock;
   running = false;
@@ -82,6 +84,7 @@ export class Game {
     this.laneHeightMap = new LaneHeightMap();
     this.seasonManager = new SeasonManager();
     this.inputManager = new InputManager();
+    this.hud = new Hud();
     // These are initialized in load() but typed as definite
     this.player = null!;
     this.trackManager = null!;
@@ -380,12 +383,12 @@ export class Game {
   pause() {
     this.running = false;
     this.soundManager.suspend();
-    document.getElementById('pause-screen')!.style.display = 'flex';
+    this.hud.showPause();
   }
 
   resume() {
     this.running = true;
-    document.getElementById('pause-screen')!.style.display = 'none';
+    this.hud.hidePause();
     this.soundManager.resumeCtx();
     this.clock.start();
     this.update();
@@ -483,8 +486,8 @@ export class Game {
     if (this.metalMode) scoreMultiplier = 2;
     if (this.isSnowmobile) scoreMultiplier = Math.max(scoreMultiplier, 2);
     this.score += Math.round(this.speed * dt * scoreMultiplier);
-    document.getElementById('score')!.textContent = this.score.toString();
-    document.getElementById('coins-display')!.textContent = `Snowflakes: ${this.coins}`;
+    this.hud.updateScore(this.score);
+    this.hud.updateCoins(this.coins);
 
     // Vehicle upgrades based on score (not in autumn — mountain bike stays)
     if (!this.powerupManager.bobsledShield && !this.snowboardMode) {
@@ -578,9 +581,7 @@ export class Game {
       if (elapsed < 1.8) {
         requestAnimationFrame(animateCrash);
       } else {
-        document.getElementById('game-over-screen')!.style.display = 'flex';
-        document.getElementById('final-score')!.textContent = this.score.toString();
-        document.getElementById('final-coins')!.textContent = `Snowflakes: ${this.coins}`;
+        this.hud.showGameOver(this.score, this.coins);
       }
 
       this.renderer.render(this.scene, this.camera);

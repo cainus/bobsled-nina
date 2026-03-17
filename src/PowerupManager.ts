@@ -216,9 +216,9 @@ export class PowerupManager {
       this.game.player.setVehicleBlack(true);
     }
     this.game.soundManager.playCollect();
-    const el = document.getElementById('shield-display')!;
-    el.style.display = 'block';
-    el.textContent = isSpring ? '🛶 x3' : isAutumn ? '🏍️ x3' : this.isSnowmobile ? '🏔️ x3' : '🛷 x3';
+    this.game.hud.setPrimaryStatus(
+      isSpring ? '🛶 x3' : isAutumn ? '🏍️ x3' : this.isSnowmobile ? '🏔️ x3' : '🛷 x3'
+    );
   }
 
   private deactivateShield() {
@@ -230,28 +230,22 @@ export class PowerupManager {
     }
     this.isSnowmobile = false;
     this.game.player.switchVehicle(this.getDefaultVehicle());
-    document.getElementById('shield-display')!.style.display = 'none';
+    this.game.hud.hidePrimaryStatus();
   }
 
   private activateMetalMode() {
     this.metalMode = true;
     this.game.soundManager.startThrash();
     this.game.player.setMetalMode(true);
-    const el = document.getElementById('metal-display')!;
-    el.style.display = 'block';
+    this.game.hud.showMetalStatus();
   }
 
   private deactivateMetalMode() {
     this.metalMode = false;
     this.game.soundManager.stopThrash();
     this.game.player.setMetalMode(false);
-    document.getElementById('metal-display')!.style.display = 'none';
-    const el = document.createElement('div');
-    el.textContent = 'METAL OVER!';
-    el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff4444;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
-    document.getElementById('ui-overlay')!.appendChild(el);
-    requestAnimationFrame(() => { el.style.top = '35%'; el.style.opacity = '0'; });
-    setTimeout(() => el.remove(), 600);
+    this.game.hud.hideMetalStatus();
+    this.game.hud.showFloatingText({ text: 'METAL OVER!', color: '#ff4444' });
   }
 
   private activateSnowboard() {
@@ -260,16 +254,14 @@ export class PowerupManager {
     this.game.player.switchVehicle('snowboard');
     this.game.player.jumpMultiplier = 1.5;
     this.game.soundManager.playCollect();
-    const el = document.getElementById('shield-display')!;
-    el.style.display = 'block';
-    el.textContent = '🏂 3x JUMP';
+    this.game.hud.setPrimaryStatus('🏂 3x JUMP');
   }
 
   private deactivateSnowboard() {
     this.snowboardMode = false;
     this.game.player.jumpMultiplier = 1;
     this.game.player.switchVehicle(this.getDefaultVehicle());
-    document.getElementById('shield-display')!.style.display = 'none';
+    this.game.hud.hidePrimaryStatus();
   }
 
   private activateHelmet() {
@@ -311,9 +303,7 @@ export class PowerupManager {
     this.helmetMesh.position.set(0, 1.46, 0);
     this.game.player.character.add(this.helmetMesh);
     this.game.player.setBlackHelmetVisible(false);
-    const el = document.getElementById('shield-display')!;
-    el.style.display = 'block';
-    el.textContent = '⛑️ x3';
+    this.game.hud.setPrimaryStatus('⛑️ x3');
   }
 
   private deactivateHelmet() {
@@ -324,30 +314,17 @@ export class PowerupManager {
       this.helmetMesh = null;
     }
     this.game.player.setBlackHelmetVisible(true);
-    document.getElementById('shield-display')!.style.display = 'none';
+    this.game.hud.hidePrimaryStatus();
   }
 
   private showShieldHit() {
-    document.getElementById('shield-display')!.textContent = `🛷 x${this.bobsledHitsLeft}`;
-    const el = document.createElement('div');
-    el.textContent = 'CRASH!';
-    el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff4444;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
-    document.getElementById('ui-overlay')!.appendChild(el);
-    requestAnimationFrame(() => {
-      el.style.top = '35%';
-      el.style.opacity = '0';
-    });
-    setTimeout(() => el.remove(), 600);
+    this.game.hud.setPrimaryStatus(`🛷 x${this.bobsledHitsLeft}`);
+    this.game.hud.showFloatingText({ text: 'CRASH!', color: '#ff4444' });
   }
 
   private showHelmetBounce() {
-    document.getElementById('shield-display')!.textContent = `⛑️ x${this.helmetBouncesLeft}`;
-    const el = document.createElement('div');
-    el.textContent = 'BOUNCE!';
-    el.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff69b4;font-size:32px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.7);pointer-events:none;transition:all 0.5s ease-out;opacity:1;';
-    document.getElementById('ui-overlay')!.appendChild(el);
-    requestAnimationFrame(() => { el.style.top = '35%'; el.style.opacity = '0'; });
-    setTimeout(() => el.remove(), 600);
+    this.game.hud.setPrimaryStatus(`⛑️ x${this.helmetBouncesLeft}`);
+    this.game.hud.showFloatingText({ text: 'BOUNCE!', color: '#ff69b4' });
   }
 
   explodeSnowman(mesh: THREE.Object3D, keepHat: boolean) {
@@ -841,7 +818,6 @@ export class PowerupManager {
     this.bigRampActive = false;
     this.game.soundManager.stopThrash();
     this.game.soundManager.stopMotor();
-    document.getElementById('shield-display')!.style.display = 'none';
-    document.getElementById('metal-display')!.style.display = 'none';
+    this.game.hud.resetTransientStatus();
   }
 }

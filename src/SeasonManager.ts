@@ -134,4 +134,11 @@ export class SeasonManager {
   getPhaseProgress(score: number): number {
     return (score % PHASE_DURATION) / PHASE_DURATION;
   }
+
+  getSeasonProgress(score: number): number {
+    const adjusted = score + this.scoreOffset;
+    const cycleScore = adjusted % (SEASON_DURATION * SEASONS.length);
+    const withinSeason = cycleScore % SEASON_DURATION;
+    return withinSeason / SEASON_DURATION;
+  }
 }
