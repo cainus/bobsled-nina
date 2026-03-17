@@ -1,0 +1,25 @@
+index.html
+  5f546b2f94aa423f 53,63-84,173-177
+src/main.ts
+  5f546b2f94aa423f 1,10-11,17-98,121,139,141-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "020bcd115063e0dea43f026b0b4364e345259533",
+  "prompts": {
+    "5f546b2f94aa423f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7a6efe3-32d4-4d1e-bf8c-bed7f2a100b1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 142,
+      "total_deletions": 3,
+      "accepted_lines": 141,
+      "overriden_lines": 0
+    }
+  }
+}
