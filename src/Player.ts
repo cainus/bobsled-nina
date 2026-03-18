@@ -118,39 +118,57 @@ export class Player {
   }
 
   private buildBobsledParts() {
-    // Sled body - sleek shape
-    const bodyGeo = new THREE.BoxGeometry(1.6, 0.4, 2.8);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe63946 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0xcc2233 });
+    const runnerMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+
+    // Main hull — the cockpit area
+    const bodyGeo = new THREE.BoxGeometry(1.4, 0.35, 2.4);
     const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = 0;
+    body.position.set(0, 0.0, -0.1);
     body.castShadow = true;
     this.vehicle.add(body);
 
-    // Front curved part
-    const frontGeo = new THREE.CylinderGeometry(0.3, 0.8, 0.5, 8, 1, false, 0, Math.PI);
-    const frontMat = new THREE.MeshStandardMaterial({ color: 0xe63946 });
-    const front = new THREE.Mesh(frontGeo, frontMat);
-    front.rotation.x = Math.PI / 2;
-    front.rotation.z = Math.PI;
-    front.position.set(0, 0.1, 1.55);
-    this.vehicle.add(front);
+    // Nose — tapered front using a scaled box
+    const noseGeo = new THREE.BoxGeometry(1.0, 0.3, 0.8);
+    const nose = new THREE.Mesh(noseGeo, bodyMat);
+    nose.position.set(0, 0.05, 1.4);
+    nose.castShadow = true;
+    this.vehicle.add(nose);
 
-    // Runners (metal blades underneath)
-    const runnerGeo = new THREE.BoxGeometry(0.1, 0.15, 3.0);
-    const runnerMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
-    for (const side of [-0.7, 0.7]) {
-      const runner = new THREE.Mesh(runnerGeo, runnerMat);
-      runner.position.set(side, -0.25, 0);
-      this.vehicle.add(runner);
-    }
+    // Nose tip — small rounded end
+    const noseTipGeo = new THREE.BoxGeometry(0.6, 0.25, 0.4);
+    const noseTip = new THREE.Mesh(noseTipGeo, bodyMat);
+    noseTip.position.set(0, 0.08, 1.85);
+    this.vehicle.add(noseTip);
 
-    // Side rails
-    const railGeo = new THREE.BoxGeometry(0.12, 0.35, 2.4);
-    const railMat = new THREE.MeshStandardMaterial({ color: 0xcc2233 });
-    for (const side of [-0.75, 0.75]) {
+    // Nose cap — curved upturn
+    const capGeo = new THREE.SphereGeometry(0.3, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const cap = new THREE.Mesh(capGeo, bodyMat);
+    cap.position.set(0, 0.08, 2.0);
+    cap.scale.set(1, 0.6, 0.8);
+    this.vehicle.add(cap);
+
+    // Side rails — cockpit walls
+    for (const side of [-0.65, 0.65]) {
+      const railGeo = new THREE.BoxGeometry(0.12, 0.4, 2.2);
       const rail = new THREE.Mesh(railGeo, railMat);
       rail.position.set(side, 0.3, -0.1);
       this.vehicle.add(rail);
+    }
+
+    // Back wall
+    const backGeo = new THREE.BoxGeometry(1.4, 0.4, 0.12);
+    const back = new THREE.Mesh(backGeo, railMat);
+    back.position.set(0, 0.3, -1.2);
+    this.vehicle.add(back);
+
+    // Runners (metal blades underneath)
+    const runnerGeo = new THREE.BoxGeometry(0.1, 0.12, 3.2);
+    for (const side of [-0.6, 0.6]) {
+      const runner = new THREE.Mesh(runnerGeo, runnerMat);
+      runner.position.set(side, -0.22, 0.1);
+      this.vehicle.add(runner);
     }
   }
 
@@ -294,19 +312,18 @@ export class Player {
     stripe.position.set(0, -0.045, 0.2);
     this.vehicle.add(stripe);
 
-    // Nose - rounded front
-    const noseGeo = new THREE.CylinderGeometry(0.04, 0.35, 0.3, 8, 1, false, 0, Math.PI);
+    // Nose - flat upturned front
+    const noseGeo = new THREE.BoxGeometry(0.7, 0.08, 0.3);
     const nose = new THREE.Mesh(noseGeo, boardMat);
-    nose.rotation.x = Math.PI / 2;
-    nose.rotation.z = Math.PI;
-    nose.position.set(0, 0.0, 1.45);
+    nose.position.set(0, 0.02, 1.45);
+    nose.rotation.x = -0.3;
     this.vehicle.add(nose);
 
-    // Tail - slight uptick
-    const tailGeo = new THREE.CylinderGeometry(0.04, 0.35, 0.25, 8, 1, false, 0, Math.PI);
+    // Tail - flat uptick
+    const tailGeo = new THREE.BoxGeometry(0.7, 0.08, 0.25);
     const tail = new THREE.Mesh(tailGeo, boardMat);
-    tail.rotation.x = -Math.PI / 2;
-    tail.position.set(0, 0.0, -1.0);
+    tail.position.set(0, 0.02, -1.0);
+    tail.rotation.x = 0.3;
     this.vehicle.add(tail);
 
     // Bindings
@@ -630,16 +647,16 @@ export class Player {
       this.vehicle.add(seg);
     }
 
-    // Bow point — gold
+    // Bow point (front) — gold, matching regular kayak orientation
     const bowMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6, roughness: 0.2 });
-    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.6, 8), bowMat);
-    bow.rotation.x = -Math.PI / 2;
-    bow.position.set(0, -0.02, 1.7);
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.5, 8), bowMat);
+    bow.rotation.x = Math.PI / 2;
+    bow.position.set(0, 0.05, 1.5);
     this.vehicle.add(bow);
-    // Stern point
-    const stern = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.4, 8), bowMat);
-    stern.rotation.x = Math.PI / 2;
-    stern.position.set(0, -0.02, -1.3);
+    // Stern point (back)
+    const stern = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 8), bowMat);
+    stern.rotation.x = -Math.PI / 2;
+    stern.position.set(0, 0.05, -1.2);
     this.vehicle.add(stern);
 
     // Cockpit rim — gold
@@ -872,7 +889,7 @@ export class Player {
     const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
     for (const side of [-0.1, 0.1]) {
       // White
-      const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), eyeWhiteMat);
+      const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), eyeWhiteMat);
       eyeWhite.position.set(side, 1.46, 0.25);
       eyeWhite.scale.set(1, 1.1, 0.5);
       headGroup.add(eyeWhite);
@@ -1012,6 +1029,17 @@ export class Player {
 
     // --- Arms --- connected at shoulders, two-segment (upper arm + forearm)
     const hasSkiPoles = this.currentVehicle === 'skis' || this.currentVehicle === 'rainbowSkis';
+    const hasHandlebars = this.currentVehicle === 'mountainBike' || this.currentVehicle === 'motorbike' || this.currentVehicle === 'jetski';
+
+    // Handlebar grip positions in character space
+    let handleGripX = 0, handleGripY = 0, handleGripZ = 0;
+    if (this.currentVehicle === 'mountainBike') {
+      handleGripX = 0.35; handleGripY = 0.60; handleGripZ = 0.75;
+    } else if (this.currentVehicle === 'motorbike') {
+      handleGripX = 0.40; handleGripY = 0.80; handleGripZ = 1.1;
+    } else if (this.currentVehicle === 'jetski') {
+      handleGripX = 0.30; handleGripY = 0.55; handleGripZ = 0.42;
+    }
 
     for (const side of [-1, 1]) {
       const sx = side * 0.3;
@@ -1022,38 +1050,62 @@ export class Player {
       shoulder.castShadow = true;
       this.character.add(shoulder);
 
-      // Upper arm — hangs down from shoulder, angled forward for tuck
-      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.28, 8), outfitMat);
+      let handX: number, handY: number, handZ: number;
+
       if (hasSkiPoles) {
+        // Upper arm — tuck pose
+        const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.28, 8), outfitMat);
         upperArm.position.set(side * 0.34, 0.72, 0.14);
         upperArm.rotation.x = -0.5;
         upperArm.rotation.z = side * -0.12;
-      } else {
-        upperArm.position.set(side * 0.38, 0.78, 0.06);
-        upperArm.rotation.x = -0.3;
-        upperArm.rotation.z = side * -0.2;
-      }
-      upperArm.castShadow = true;
-      this.character.add(upperArm);
+        upperArm.castShadow = true;
+        this.character.add(upperArm);
 
-      // Forearm — bent sharply at elbow, pointing forward and slightly up
-      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.26, 8), outfitMat);
-      if (hasSkiPoles) {
+        const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.26, 8), outfitMat);
         forearm.position.set(side * 0.32, 0.56, 0.32);
         forearm.rotation.x = -1.4;
         forearm.rotation.z = side * -0.08;
+        forearm.castShadow = true;
+        this.character.add(forearm);
+
+        handX = side * 0.30; handY = 0.65; handZ = 0.46;
+      } else if (hasHandlebars) {
+        // Arms reaching forward and down to grip handlebars
+        handX = side * handleGripX; handY = handleGripY; handZ = handleGripZ;
+
+        const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.28, 8), outfitMat);
+        upperArm.position.set(side * 0.34, 0.76, 0.18);
+        upperArm.rotation.x = -0.8; // angled forward and down
+        upperArm.rotation.z = side * -0.15;
+        upperArm.castShadow = true;
+        this.character.add(upperArm);
+
+        const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.26, 8), outfitMat);
+        forearm.position.set(side * 0.35, 0.58, 0.38);
+        forearm.rotation.x = -1.2; // bent forward toward handlebars
+        forearm.rotation.z = side * -0.1;
+        forearm.castShadow = true;
+        this.character.add(forearm);
       } else {
+        // Default arm pose
+        const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.28, 8), outfitMat);
+        upperArm.position.set(side * 0.38, 0.78, 0.06);
+        upperArm.rotation.x = -0.3;
+        upperArm.rotation.z = side * -0.2;
+        upperArm.castShadow = true;
+        this.character.add(upperArm);
+
+        const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.26, 8), outfitMat);
         forearm.position.set(side * 0.42, 0.56, 0.16);
         forearm.rotation.x = -0.5;
-      }
-      forearm.castShadow = true;
-      this.character.add(forearm);
+        forearm.castShadow = true;
+        this.character.add(forearm);
 
-      // Glove — at the forward end of the forearm
+        handX = side * 0.42; handY = 0.40; handZ = 0.24;
+      }
+
+      // Glove
       const handMat = isSummerLook ? skinMat : darkMat;
-      const handX = hasSkiPoles ? side * 0.30 : side * 0.42;
-      const handY = hasSkiPoles ? 0.65 : 0.40;
-      const handZ = hasSkiPoles ? 0.46 : 0.24;
       const glove = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), handMat);
       glove.position.set(handX, handY, handZ);
       this.character.add(glove);
@@ -1069,6 +1121,8 @@ export class Player {
     this.rightLeg = null;
     const isBike = this.currentVehicle === 'mountainBike';
     const isKayak = this.isWaterVehicle();
+    const isBobsled = this.currentVehicle === 'bobsled';
+    const isSeated = isKayak || isBobsled;
     const legSides: [number, THREE.Group | null][] = [];
 
     for (const side of [-0.15, 0.15]) {
@@ -1092,34 +1146,80 @@ export class Player {
 
       if (isBike) {
         thigh.position.set(0, -0.15, 0);
-        shin.position.set(0, -0.38, 0.05);
-        boot.position.set(0, -0.48, 0.1);
-        sole.position.set(0, -0.54, 0.1);
+        shin.position.set(0, -0.42, 0.05);
+        boot.position.set(0, -0.56, 0.1);
+        sole.position.set(0, -0.62, 0.1);
         parent.add(thigh, shin, boot, sole);
         legGroup!.position.set(side, 0.5, 0.05);
         this.character.add(legGroup!);
-      } else if (isKayak) {
-        // Legs stretched forward inside kayak cockpit
+      } else if (isSeated) {
+        // Legs stretched forward inside cockpit
         thigh.position.set(side, 0.15, 0.25);
-        thigh.rotation.x = -1.2; // angled forward
+        thigh.rotation.x = -1.2;
         shin.position.set(side, 0.0, 0.55);
         shin.rotation.x = -1.4;
         boot.position.set(side, -0.05, 0.75);
         boot.rotation.x = 0;
         sole.position.set(side, -0.1, 0.75);
         this.character.add(thigh, shin, boot, sole);
+      } else if (this.currentVehicle === 'snowboard') {
+        // Snowboard stance — feet in bindings
+        // Character rotated PI/2: char +X → vehicle -Z
+        // Bindings at vehicle z=-0.15 and z=0.5 → char x=0.15 and x=-0.5
+        const footX = side > 0 ? -0.5 : 0.15;
+        // Hip stays near center, leg angles out to reach binding
+        const hipX = side > 0 ? -0.12 : 0.08;
+
+        const hipJoint = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), legMat);
+        hipJoint.position.set(hipX, 0.45, 0.0);
+        parent.add(hipJoint);
+
+        thigh.position.set((hipX + footX) * 0.5, 0.30, 0.05);
+        thigh.rotation.x = -0.5;
+        thigh.rotation.z = (footX - hipX) * 0.4; // angle outward toward foot
+        parent.add(thigh);
+
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 6), legMat);
+        knee.position.set((hipX + footX * 2) / 3, 0.10, 0.12);
+        parent.add(knee);
+
+        shin.position.set(footX * 0.85, -0.04, 0.10);
+        shin.rotation.x = 0.4;
+        shin.rotation.z = (footX - hipX) * 0.2;
+        parent.add(shin);
+
+        boot.position.set(footX, -0.16, 0.06);
+        boot.scale.set(1.1, 1.5, 0.9);
+        sole.position.set(footX, -0.22, 0.06);
+        sole.scale.set(1.2, 1, 1.2);
+        parent.add(boot, sole);
       } else {
         // Legs in deep tuck — wider stance over skis, knees well bent
         const legX = side * 1.67;
-        thigh.position.set(legX, 0.28, 0.14);
-        thigh.rotation.x = -0.7; // more forward lean
-        shin.position.set(legX, -0.02, 0.28);
-        shin.rotation.x = 0.6; // sharper knee bend
-        boot.position.set(legX, -0.16, 0.22);
-        boot.scale.set(1.1, 1.5, 0.9); // larger feet
-        sole.position.set(legX, -0.22, 0.22);
-        sole.scale.set(1.2, 1, 1.2); // wider sole
-        parent.add(thigh, shin, boot, sole);
+
+        // Hip joint sphere — connects leg to torso
+        const hipJoint = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), legMat);
+        hipJoint.position.set(legX, 0.45, 0.08);
+        parent.add(hipJoint);
+
+        thigh.position.set(legX, 0.30, 0.16);
+        thigh.rotation.x = -0.7;
+        parent.add(thigh);
+
+        // Knee joint sphere
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 6), legMat);
+        knee.position.set(legX, 0.10, 0.28);
+        parent.add(knee);
+
+        shin.position.set(legX, -0.04, 0.24);
+        shin.rotation.x = 0.6;
+        parent.add(shin);
+
+        boot.position.set(legX, -0.16, 0.18);
+        boot.scale.set(1.1, 1.5, 0.9);
+        sole.position.set(legX, -0.22, 0.18);
+        sole.scale.set(1.2, 1, 1.2);
+        parent.add(boot, sole);
       }
       legSides.push([side, legGroup]);
     }
@@ -1136,10 +1236,16 @@ export class Player {
       this.character.rotation.y = Math.PI / 2;
     }
 
-    // Kayak/canoe seated position: lower body, legs stretched forward
+    // Seated vehicles: lower body, legs stretched forward
     if (this.isWaterVehicle()) {
       this.character.position.y = -0.25;
-      this.character.rotation.x = -0.3; // lean back slightly
+      this.character.rotation.x = -0.3;
+    } else if (this.currentVehicle === 'bobsled') {
+      this.character.position.y = -0.35;
+      this.character.rotation.x = -0.2;
+    } else if (this.currentVehicle === 'motorbike') {
+      this.character.position.y = -0.15;
+      this.character.position.z = -0.3;
     }
 
     this.group.add(this.character);

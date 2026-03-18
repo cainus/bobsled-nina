@@ -119,12 +119,23 @@ game.load((pct) => {
   seasonPicker.style.display = '';
   controlsHint.style.display = '';
   charViewLoaded = true;
+  updateSeasonHighlight();
 });
 
 // Season buttons start the game directly
-for (const btn of document.querySelectorAll('.season-btn')) {
+const seasonBtns = Array.from(document.querySelectorAll('.season-btn')) as HTMLElement[];
+let selectedSeasonIndex = 0;
+
+function updateSeasonHighlight() {
+  for (let i = 0; i < seasonBtns.length; i++) {
+    seasonBtns[i].style.borderColor = i === selectedSeasonIndex ? '#fff' : 'rgba(255,255,255,0.3)';
+    seasonBtns[i].style.transform = i === selectedSeasonIndex ? 'scale(1.08)' : '';
+  }
+}
+
+for (const btn of seasonBtns) {
   btn.addEventListener('click', () => {
-    const season = (btn as HTMLElement).dataset.season as Season;
+    const season = btn.dataset.season as Season;
     startWithSeason(season);
   });
 }
@@ -157,8 +168,29 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Season picker keyboard navigation
+  const startScreenVisible = document.getElementById('start-screen')!.style.display !== 'none';
+  const seasonPickerVisible = seasonPicker.style.display !== 'none';
+  if (startScreenVisible && seasonPickerVisible) {
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      selectedSeasonIndex = (selectedSeasonIndex + 1) % seasonBtns.length;
+      updateSeasonHighlight();
+      return;
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      selectedSeasonIndex = (selectedSeasonIndex - 1 + seasonBtns.length) % seasonBtns.length;
+      updateSeasonHighlight();
+      return;
+    }
+    if (e.key === 'Enter') {
+      const season = seasonBtns[selectedSeasonIndex].dataset.season as Season;
+      startWithSeason(season);
+      return;
+    }
+  }
+
   // Open character viewer from start screen
-  if ((e.key === 'c' || e.key === 'C') && document.getElementById('start-screen')!.style.display !== 'none') {
+  if ((e.key === 'c' || e.key === 'C') && startScreenVisible) {
     openCharacterViewer();
     return;
   }
