@@ -1,0 +1,23 @@
+src/SoundManager.ts
+  5f546b2f94aa423f 108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "6f4eed1777c1cb0278786d7172c8ce86b0518957",
+  "prompts": {
+    "5f546b2f94aa423f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7a6efe3-32d4-4d1e-bf8c-bed7f2a100b1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
