@@ -278,6 +278,64 @@ export class SoundManager {
     this.windActive = true;
   }
 
+  // Winter wind gusts — occasional howling bursts
+  private gustTimer = 0;
+  private nextGustTime = 5 + Math.random() * 10;
+
+  updateWindGusts(dt: number, isWinter: boolean) {
+    if (!isWinter) {
+      this.gustTimer = 0;
+      return;
+    }
+    this.gustTimer += dt;
+    if (this.gustTimer >= this.nextGustTime) {
+      this.gustTimer = 0;
+      this.nextGustTime = 8 + Math.random() * 15; // 8-23 seconds between gusts
+      this.playWindGust();
+    }
+  }
+
+  private playWindGust() {
+    const ctx = this.ensureContext();
+    const sr = ctx.sampleRate;
+    const duration = 1.5 + Math.random() * 2; // 1.5-3.5 seconds
+    const len = Math.floor(sr * duration);
+    const buffer = ctx.createBuffer(1, len, sr);
+    const data = buffer.getChannelData(0);
+
+    // Filtered noise with envelope — howling wind
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() - 0.5) * 2;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // Band-pass for a howling tone
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 400 + Math.random() * 300; // random pitch
+    bp.Q.value = 3;
+
+    // Slow pitch sweep for eerie howl
+    bp.frequency.linearRampToValueAtTime(
+      200 + Math.random() * 200,
+      ctx.currentTime + duration
+    );
+
+    const gain = ctx.createGain();
+    // Swell up then fade out
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + duration * 0.3);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+
+    source.connect(bp);
+    bp.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    source.stop(ctx.currentTime + duration);
+  }
+
   // Thrash metal music
   private thrashSource: AudioBufferSourceNode | null = null;
   private thrashGain: GainNode | null = null;
@@ -448,6 +506,113 @@ export class SoundManager {
     }
   }
 
+  // Reggae loop for summer jetski powerup
+  private reggaeSource: AudioBufferSourceNode | null = null;
+  private reggaeGain: GainNode | null = null;
+  private reggaePlaying = false;
+
+  startReggae() {
+    if (this.reggaePlaying) return;
+    this.reggaePlaying = true;
+    const ctx = this.ensureContext();
+
+    // Synthesized reggae: offbeat chord stabs with bass, 8-bar loop at relaxed tempo
+    const sr = ctx.sampleRate;
+    const bpm = 80;
+    const beatLen = (60 / bpm) * sr;
+    const bars = 8;
+    const len = Math.floor(beatLen * 4 * bars);
+    const buffer = ctx.createBuffer(1, len, sr);
+    const data = buffer.getChannelData(0);
+
+    // Chord progression (root frequencies): I - IV - V - I per 2 bars
+    const chords = [
+      { root: 130.81, third: 164.81, fifth: 196.00 }, // C major
+      { root: 130.81, third: 164.81, fifth: 196.00 }, // C major
+      { root: 174.61, third: 220.00, fifth: 261.63 }, // F major
+      { root: 174.61, third: 220.00, fifth: 261.63 }, // F major
+      { root: 196.00, third: 246.94, fifth: 293.66 }, // G major
+      { root: 196.00, third: 246.94, fifth: 293.66 }, // G major
+      { root: 130.81, third: 164.81, fifth: 196.00 }, // C major
+      { root: 146.83, third: 185.00, fifth: 220.00 }, // D minor (variation)
+    ];
+    // Bass notes per bar
+    const bassNotes = [65.41, 65.41, 87.31, 87.31, 98.00, 98.00, 65.41, 73.42];
+
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const barIndex = Math.floor(i / (beatLen * 4)) % bars;
+      const beatInBar = (i % (beatLen * 4)) / beatLen; // 0-4
+
+      const chord = chords[barIndex];
+      const bassFreq = bassNotes[barIndex];
+      let val = 0;
+
+      // Offbeat skank on the "and" of each beat
+      for (let b = 0; b < 4; b++) {
+        const skankStart = b + 0.5;
+        const skankDur = 0.2;
+        if (beatInBar >= skankStart && beatInBar < skankStart + skankDur) {
+          const env = 1 - (beatInBar - skankStart) / skankDur;
+          val += Math.sin(t * chord.root * 2 * Math.PI * 2) * env * 0.1;
+          val += Math.sin(t * chord.third * 2 * Math.PI * 2) * env * 0.07;
+          val += Math.sin(t * chord.fifth * 2 * Math.PI * 2) * env * 0.07;
+        }
+      }
+
+      // Bass on beats 1 and 3, with slightly different rhythm
+      const bassHits = [0, 2.5];
+      for (const b of bassHits) {
+        const bassDur = 0.5;
+        if (beatInBar >= b && beatInBar < b + bassDur) {
+          const env = 1 - (beatInBar - b) / bassDur;
+          val += Math.sin(t * bassFreq * Math.PI * 2) * env * env * 0.2;
+        }
+      }
+
+      // Rimshot on beat 3 (short noise burst)
+      if (beatInBar >= 2.0 && beatInBar < 2.05) {
+        val += (Math.random() - 0.5) * 0.15;
+      }
+
+      // Kick on beat 1
+      if (beatInBar >= 0 && beatInBar < 0.08) {
+        const kickEnv = 1 - beatInBar / 0.08;
+        val += Math.sin(t * 55 * Math.PI * 2) * kickEnv * kickEnv * 0.25;
+      }
+
+      data[i] = val;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.35;
+
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+
+    this.reggaeSource = source;
+    this.reggaeGain = gain;
+  }
+
+  stopReggae() {
+    if (!this.reggaePlaying) return;
+    this.reggaePlaying = false;
+    if (this.reggaeSource) {
+      this.reggaeSource.stop();
+      this.reggaeSource.disconnect();
+      this.reggaeSource = null;
+    }
+    if (this.reggaeGain) {
+      this.reggaeGain.disconnect();
+      this.reggaeGain = null;
+    }
+  }
+
   setWindVolume(vol: number) {
     if (this.windGain) {
       this.windGain.gain.linearRampToValueAtTime(vol, this.ctx!.currentTime + 0.5);
@@ -516,6 +681,7 @@ export class SoundManager {
     this.stopSliding();
     this.stopThrash();
     this.stopMotor();
+    this.stopReggae();
     this.stopWaterfall();
     if (this.windSource) {
       this.windSource.stop();

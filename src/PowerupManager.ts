@@ -44,7 +44,7 @@ export class PowerupManager {
         else types.push('bobsled'); // spawns motorbike mesh in autumn (handled in spawnPowerup)
       }
       const season = this.game.seasonManager.season;
-      const noSnowboard = season === 'autumn' || season === 'spring' || season === 'summer';
+      const noSnowboard = season === 'autumn' || season === 'spring';
       if (!this.snowboardMode && this.game.score >= this.nextSnowboardScore && !noSnowboard) types.push('snowboard');
       if (!this.helmetMode) types.push('helmet');
       if (this.metalMode && types.includes('metal')) types.splice(types.indexOf('metal'), 1);
@@ -212,6 +212,7 @@ export class PowerupManager {
       this.game.soundManager.startMotor();
     } else {
       this.game.player.switchVehicle('bobsled');
+      this.game.soundManager.startReggae();
       if (this.isSnowmobile) {
         this.game.player.setVehicleColors(0xddcc00, 0x222222);
         this.game.soundManager.startMotor();
@@ -233,6 +234,7 @@ export class PowerupManager {
     if (this.isSnowmobile || wasMotor) {
       this.game.soundManager.stopMotor();
     }
+    this.game.soundManager.stopReggae();
     this.isSnowmobile = false;
     this.game.player.switchVehicle(this.getDefaultVehicle());
     this.game.hud.hidePrimaryStatus();
@@ -259,7 +261,8 @@ export class PowerupManager {
     this.game.player.switchVehicle('snowboard');
     this.game.player.jumpMultiplier = 1.5;
     this.game.soundManager.playCollect();
-    this.game.hud.setPrimaryStatus('🏂 3x JUMP');
+    const isSummerBoard = this.game.seasonManager.season === 'summer';
+    this.game.hud.setPrimaryStatus(isSummerBoard ? '🏄 3x JUMP' : '🏂 3x JUMP');
   }
 
   private deactivateSnowboard() {

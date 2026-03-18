@@ -182,9 +182,10 @@ export class CoinManager {
       emissiveIntensity: 0.2,
     });
 
-    // Simple 2D clam shell — fan-shaped circle
-    const shell = new THREE.Mesh(new THREE.CircleGeometry(0.25, 8, 0, Math.PI), mat);
+    // Simple clam shell — fan-shaped with minimal thickness
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.04, 8, 1, false, 0, Math.PI), mat);
     shell.position.y = 0.0;
+    shell.rotation.z = Math.PI / 2;
     shell.castShadow = true;
     group.add(shell);
 

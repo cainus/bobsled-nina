@@ -507,6 +507,8 @@ export class Game {
     // Update sound
     this.soundManager.setSlidingMuted(this.player.isJumping);
     this.soundManager.updateSlidingPitch(this.speed);
+    const s = this.seasonManager.season;
+    this.soundManager.updateWindGusts(dt, s === 'winter' || s === 'spring');
     if (this.isSnowmobile) {
       this.soundManager.setMotorPitch(this.player.isJumping);
     }
