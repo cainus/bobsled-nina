@@ -1,0 +1,25 @@
+src/main.ts
+  5f546b2f94aa423f 122,126-136,171-191,193
+src/Player.ts
+  5f546b2f94aa423f 122-126,128,132-137,139-143,145-154,159-171,315-316,318-319,322-323,325-326,650,652,654,656-659,892,1032,1034-1042,1053,1056-1057,1068-1088,1090-1091,1095-1098,1101-1104,1124-1125,1149-1151,1155,1165-1195,1199-1214,1216-1218,1220,1239,1243-1248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "86ba277a45ddf5e6ee260733bbde4281d915b1df",
+  "prompts": {
+    "5f546b2f94aa423f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7a6efe3-32d4-4d1e-bf8c-bed7f2a100b1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 245,
+      "total_deletions": 107,
+      "accepted_lines": 202,
+      "overriden_lines": 0
+    }
+  }
+}
