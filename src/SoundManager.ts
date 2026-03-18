@@ -105,7 +105,7 @@ export class SoundManager {
 
   setSlidingMuted(muted: boolean) {
     if (this.slidingGain) {
-      this.slidingGain.gain.value = muted ? 0 : 0.12;
+      this.slidingGain.gain.value = muted ? 0 : 0.07;
     }
   }
 
