@@ -1,0 +1,23 @@
+index.html
+  a5c1e4f6902f549b 150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "be738ca0fb983985cd44633ff97200b5e398bbf3",
+  "prompts": {
+    "a5c1e4f6902f549b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f91aa28-a98d-4d7a-9515-2038ce89e46d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
