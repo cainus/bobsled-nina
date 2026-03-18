@@ -433,6 +433,7 @@ export class Player {
     // Pedals/cranks — rotating crank group
     const crankMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.7 });
     this.crankGroup = new THREE.Group();
+    this.crankGroup.userData = { animCrank: true };
     this.crankGroup.position.set(0, -0.05, 0);
     for (const side of [-0.15, 0.15]) {
       const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.06), crankMat);
@@ -606,6 +607,7 @@ export class Player {
 
     // Paddle — in a group for animation
     this.paddleGroup = new THREE.Group();
+    this.paddleGroup.userData = { animPaddle: true };
     this.paddleGroup.position.set(0, 0.3, 0.2);
     const shaft = new THREE.Mesh(
       new THREE.CylinderGeometry(0.02, 0.02, 2.2, 6),
@@ -675,6 +677,7 @@ export class Player {
     // Gold paddle — in a group for animation
     const shaftMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6 });
     this.paddleGroup = new THREE.Group();
+    this.paddleGroup.userData = { animPaddle: true };
     this.paddleGroup.position.set(0, 0.3, 0.2);
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.2, 6), shaftMat);
     shaft.rotation.z = Math.PI / 2;
@@ -1126,7 +1129,7 @@ export class Player {
     const legSides: [number, THREE.Group | null][] = [];
 
     for (const side of [-0.15, 0.15]) {
-      const legGroup = isBike ? new THREE.Group() : null;
+      const legGroup = isBike ? (() => { const g = new THREE.Group(); g.userData = { animLeg: side < 0 ? 'left' : 'right' }; return g; })() : null;
       const parent = legGroup ?? this.character;
 
       // Thigh
@@ -1246,6 +1249,11 @@ export class Player {
     } else if (this.currentVehicle === 'motorbike') {
       this.character.position.y = -0.15;
       this.character.position.z = -0.3;
+      this.character.rotation.x = 0.3;
+    } else if (this.currentVehicle === 'mountainBike') {
+      this.character.rotation.x = 0.35;
+    } else if (this.currentVehicle === 'jetski') {
+      this.character.rotation.x = 0.25;
     }
 
     this.group.add(this.character);

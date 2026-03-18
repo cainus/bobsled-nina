@@ -56,9 +56,29 @@ function openCharacterViewer() {
   if (charViewIndex < 0) charViewIndex = 0;
   showCharViewVehicle();
 
+  let charViewTime = 0;
   function animate() {
     charViewRafId = requestAnimationFrame(animate);
-    if (charViewGroup) charViewGroup.rotation.y += 0.01;
+    charViewTime += 0.016;
+    if (charViewGroup) {
+      charViewGroup.rotation.y += 0.01;
+      // Animate paddle, crank, and pedaling legs
+      charViewGroup.traverse((child) => {
+        if (child.userData.animPaddle) {
+          child.rotation.z = Math.sin(charViewTime * 3) * 0.5;
+          child.rotation.x = Math.sin(charViewTime * 6) * 0.15;
+        }
+        if (child.userData.animCrank) {
+          child.rotation.x = charViewTime * 3;
+        }
+        if (child.userData.animLeg === 'left') {
+          child.rotation.x = Math.sin(charViewTime * 3) * 0.6;
+        }
+        if (child.userData.animLeg === 'right') {
+          child.rotation.x = Math.sin(charViewTime * 3 + Math.PI) * 0.6;
+        }
+      });
+    }
     game.renderer.render(charViewScene!, charViewCamera!);
   }
   animate();
