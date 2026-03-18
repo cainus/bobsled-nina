@@ -50,8 +50,9 @@ export class ObstacleManager {
       if (!obs.active) continue;
       obs.mesh.position.z -= moveAmount;
 
-      // Spring: logs float on the wave, rocks stay at track floor
-      if (obs.lane !== undefined && this.game.seasonManager.season === 'spring') {
+      // Spring/Summer: some obstacles float on the wave, others stay at track floor
+      const obsSeason = this.game.seasonManager.season;
+      if (obs.lane !== undefined && (obsSeason === 'spring' || obsSeason === 'summer')) {
         if (obs.floatsOnWave) {
           const wave = this.game.trackManager.getSpringWaveOffset(obs.lane);
           const laneY = this.game.laneHeightMap.getHeight(obs.lane, obs.mesh.position.z);
@@ -64,8 +65,19 @@ export class ObstacleManager {
       if (obs.kind === 'shark' && obs.baseX !== undefined) {
         obs.swimTime = (obs.swimTime ?? Math.random() * Math.PI * 2) + dt * 0.8;
         obs.mesh.position.x = obs.baseX + Math.sin(obs.swimTime) * 0.28;
-        obs.mesh.position.y += Math.sin(obs.swimTime * 1.7) * 0.003;
         obs.mesh.rotation.y = Math.sin(obs.swimTime) * 0.18;
+        // Periodic jump: sharp upward arc
+        const jumpPhase = (obs.swimTime * 0.3) % (Math.PI * 2);
+        const jumpWindow = jumpPhase < 1.2; // jump during a portion of the cycle
+        if (jumpWindow) {
+          const t = jumpPhase / 1.2; // 0→1 through jump
+          const jumpHeight = Math.sin(t * Math.PI) * 2.5;
+          obs.mesh.position.y += jumpHeight;
+          obs.mesh.rotation.x = -t * Math.PI * 0.3; // nose-up arc
+        } else {
+          obs.mesh.position.y += Math.sin(obs.swimTime * 1.7) * 0.003;
+          obs.mesh.rotation.x = 0;
+        }
       }
 
       // Remove if behind camera
@@ -162,7 +174,8 @@ export class ObstacleManager {
       for (const lane of blockedLanes) {
         const mesh = this.createObstacle(type);
         const isSpring = season === 'spring';
-        const floats = isSpring && type === 'log';
+        const isSummer = season === 'summer';
+        const floats = (isSpring && type === 'log') || (isSummer && type === 'floaty');
         const isRock = type === 'rock';
         let spawnY: number;
         if (isSpring && isRock) {
@@ -186,7 +199,7 @@ export class ObstacleManager {
           isSnowman: type === 'snowman',
           isPineTree: type === 'pineTree',
           isBonus: type === 'leafPile',
-          lane: isSpring ? lane : undefined,
+          lane: (isSpring || season === 'summer') ? lane : undefined,
           floatsOnWave: floats,
           baseX: lane * this.game.laneWidth,
           swimTime: type === 'shark' ? Math.random() * Math.PI * 2 : undefined,
@@ -710,11 +723,17 @@ export class ObstacleManager {
     const isAutumn = season === 'autumn';
     const isSpring = season === 'spring';
     const fallLeafColors = [0xcc3333, 0xff8800, 0xffcc00, 0x6b8e23, 0x8B4513];
+    const isSummer = season === 'summer';
+    // In summer, rocks sit flat on the track floor
+    if (isSummer) {
+      group.scale.set(1.2, 0.4, 1.2);
+    }
     const capColor = isAutumn
       ? fallLeafColors[Math.floor(Math.random() * fallLeafColors.length)]
       : isSpring ? 0x5a8a4a
+      : isSummer ? null
       : 0xfafafa;
-    const snowCapMat = new THREE.MeshStandardMaterial({ color: capColor });
+    const snowCapMat = capColor !== null ? new THREE.MeshStandardMaterial({ color: capColor }) : null;
 
     switch (variant) {
       case 0: {
@@ -732,10 +751,12 @@ export class ObstacleManager {
         top.rotation.set(0.5, 1.2, 0.4);
         top.castShadow = true;
         group.add(top);
-        const snow = new THREE.Mesh(
-          new THREE.SphereGeometry(0.5, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
-        snow.position.set(0, 1.7, 0);
-        group.add(snow);
+        if (snowCapMat) {
+          const snow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
+          snow.position.set(0, 1.7, 0);
+          group.add(snow);
+        }
         break;
       }
       case 1: {
@@ -754,10 +775,12 @@ export class ObstacleManager {
         crack.rotation.y = 0.3;
         group.add(crack);
         // Snow streak
-        const snow = new THREE.Mesh(
-          new THREE.SphereGeometry(0.6, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.3), snowCapMat);
-        snow.position.set(-0.1, 1.15, 0.1);
-        group.add(snow);
+        if (snowCapMat) {
+          const snow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.6, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.3), snowCapMat);
+          snow.position.set(-0.1, 1.15, 0.1);
+          group.add(snow);
+        }
         break;
       }
       case 2: {
@@ -774,10 +797,12 @@ export class ObstacleManager {
           group.add(rock);
         }
         // Snow on the tallest one
-        const snow = new THREE.Mesh(
-          new THREE.SphereGeometry(0.35, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
-        snow.position.set(0, 1.15, 0);
-        group.add(snow);
+        if (snowCapMat) {
+          const snow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.35, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
+          snow.position.set(0, 1.15, 0);
+          group.add(snow);
+        }
         break;
       }
       case 3: {
@@ -797,10 +822,12 @@ export class ObstacleManager {
         base.castShadow = true;
         group.add(base);
         // Snow on spire tip
-        const snow = new THREE.Mesh(
-          new THREE.SphereGeometry(0.25, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
-        snow.position.set(0.05, 2.2, 0);
-        group.add(snow);
+        if (snowCapMat) {
+          const snow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.25, 5, 4, 0, Math.PI * 2, 0, Math.PI * 0.4), snowCapMat);
+          snow.position.set(0.05, 2.2, 0);
+          group.add(snow);
+        }
         break;
       }
     }

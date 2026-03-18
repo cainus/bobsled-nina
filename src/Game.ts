@@ -526,6 +526,11 @@ export class Game {
         if (this.player.currentVehicle !== 'mountainBike' && this.player.currentVehicle !== 'bobsled' && this.player.currentVehicle !== 'motorbike') {
           this.player.switchVehicle('mountainBike');
         }
+      } else if (season === 'summer') {
+        // Summer: stay on waterskis (skis), jetski is the powerup
+        if (this.player.currentVehicle !== 'skis' && this.player.currentVehicle !== 'jetski') {
+          this.player.switchVehicle('skis');
+        }
       } else if (this.score >= 1500) {
         if (season === 'spring') {
           this.player.switchVehicle('rainbowKayak');

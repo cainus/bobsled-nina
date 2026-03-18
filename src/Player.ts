@@ -199,35 +199,54 @@ export class Player {
       this.vehicle.add(binding);
     }
 
-    // Ski poles — horizontal from hands, extending backward
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-    const basketMat = new THREE.MeshStandardMaterial({ color: 0xff4444 });
-    for (const side of [-0.30, 0.30]) {
-      const handVY = 0.90;
-      const handVZ = 0.46;
-      const poleLen = 1.3;
+    if (this.game.seasonManager.season === 'summer') {
+      // Waterski handle — triangle bar held in front
+      const handleMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+      // Horizontal bar (the grip)
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), handleMat);
+      bar.position.set(0, 0.90, 0.50);
+      bar.rotation.z = Math.PI / 2;
+      this.vehicle.add(bar);
+      // Two arms forming the V from bar ends to a point ahead
+      for (const side of [-0.25, 0.25]) {
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.8, 6), handleMat);
+        arm.position.set(side / 2, 0.90, 0.85);
+        arm.rotation.x = Math.PI / 2;
+        arm.rotation.z = side > 0 ? 0.15 : -0.15;
+        this.vehicle.add(arm);
+      }
+      // Junction point where rope connects
+      const knot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), handleMat);
+      knot.position.set(0, 0.90, 1.20);
+      this.vehicle.add(knot);
+    } else {
+      // Ski poles — horizontal from hands, extending backward
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const basketMat = new THREE.MeshStandardMaterial({ color: 0xff4444 });
+      for (const side of [-0.30, 0.30]) {
+        const handVY = 0.90;
+        const handVZ = 0.46;
+        const poleLen = 1.3;
 
-      // Pole shaft — horizontal, centered behind hand
-      const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, poleLen, 6);
-      const pole = new THREE.Mesh(poleGeo, poleMat);
-      pole.position.set(side, handVY, handVZ - poleLen / 2);
-      pole.rotation.x = Math.PI / 2;
-      pole.castShadow = true;
-      this.vehicle.add(pole);
+        const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, poleLen, 6);
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.set(side, handVY, handVZ - poleLen / 2);
+        pole.rotation.x = Math.PI / 2;
+        pole.castShadow = true;
+        this.vehicle.add(pole);
 
-      // Pole handle/grip — at hand
-      const gripGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.15, 6);
-      const grip = new THREE.Mesh(gripGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
-      grip.position.set(side, handVY, handVZ);
-      grip.rotation.x = Math.PI / 2;
-      this.vehicle.add(grip);
+        const gripGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.15, 6);
+        const grip = new THREE.Mesh(gripGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
+        grip.position.set(side, handVY, handVZ);
+        grip.rotation.x = Math.PI / 2;
+        this.vehicle.add(grip);
 
-      // Pole basket — at the far end of the pole
-      const basketGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8);
-      const basket = new THREE.Mesh(basketGeo, basketMat);
-      basket.position.set(side, handVY, handVZ - poleLen);
-      basket.rotation.x = Math.PI / 2;
-      this.vehicle.add(basket);
+        const basketGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8);
+        const basket = new THREE.Mesh(basketGeo, basketMat);
+        basket.position.set(side, handVY, handVZ - poleLen);
+        basket.rotation.x = Math.PI / 2;
+        this.vehicle.add(basket);
+      }
     }
   }
 
@@ -1364,7 +1383,7 @@ export class Player {
     const season = this.game.seasonManager.season;
     const defaultVehicle = season === 'autumn' ? 'mountainBike'
       : season === 'spring' ? 'kayak'
-      : season === 'summer' ? 'jetski'
+      : season === 'summer' ? 'skis'
       : 'skis';
     this.currentVehicle = defaultVehicle;
     this.buildVehicle(defaultVehicle);

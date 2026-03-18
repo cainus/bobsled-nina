@@ -176,40 +176,19 @@ export class CoinManager {
 
   private createSeashellCollectible(): THREE.Group {
     const group = new THREE.Group();
-    const shellColors = [0xfce4b8, 0xf5d0a0, 0xecc8a0, 0xffe0c0];
-    const color = shellColors[Math.floor(Math.random() * shellColors.length)];
     const mat = new THREE.MeshStandardMaterial({
-      color,
-      metalness: 0.2,
-      roughness: 0.4,
-      emissive: color,
+      color: 0xffffff,
+      emissive: 0xffffff,
       emissiveIntensity: 0.2,
     });
-    const innerMat = new THREE.MeshStandardMaterial({ color: 0xffb6c1, emissive: 0xff8899, emissiveIntensity: 0.15 });
 
-    // Spiral shell body — cone tilted to look like a conch
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 10), mat);
-    cone.position.y = 0.1;
-    cone.rotation.z = 0.4;
-    cone.castShadow = true;
-    group.add(cone);
+    // Simple 2D clam shell — fan-shaped circle
+    const shell = new THREE.Mesh(new THREE.CircleGeometry(0.25, 8, 0, Math.PI), mat);
+    shell.position.y = 0.0;
+    shell.castShadow = true;
+    group.add(shell);
 
-    // Rounded opening
-    const opening = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), innerMat);
-    opening.position.set(-0.05, -0.05, 0.1);
-    opening.scale.set(1, 0.7, 0.5);
-    group.add(opening);
-
-    // Spiral ridges
-    for (let i = 0; i < 3; i++) {
-      const ridge = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i * 0.04, 0.02, 6, 10), mat);
-      ridge.position.set(0, 0.05 + i * 0.12, 0);
-      ridge.rotation.x = Math.PI / 2;
-      ridge.rotation.z = i * 0.3;
-      group.add(ridge);
-    }
-
-    group.scale.setScalar(1.3);
+    group.scale.setScalar(1.5);
     return group;
   }
 

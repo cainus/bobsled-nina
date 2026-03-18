@@ -17,6 +17,7 @@ export class EnvironmentManager {
   private npcSnowmobiles: THREE.Group[] = [];
   private headlight: THREE.SpotLight | null = null;
   private motorboat: THREE.Group | null = null;
+  private towRope: THREE.Line | null = null;
 
   private bears: { mesh: THREE.Group; hasGrowled: boolean }[] = [];
   private nextBearScore = 0;
@@ -135,17 +136,42 @@ export class EnvironmentManager {
     if (season !== 'summer' && this.motorboat) {
       this.game.scene.remove(this.motorboat);
       this.motorboat = null;
+      if (this.towRope) {
+        this.game.scene.remove(this.towRope);
+        this.towRope = null;
+      }
     }
     if (this.motorboat) {
       const t = Date.now() * 0.001;
       const wave = this.game.trackManager.getSpringWaveOffset(-4);
-      // Ride high on the camera-right summer water band.
       this.motorboat.position.y = 1.35 + wave * 0.35 + Math.sin(t * 2) * 0.08;
       this.motorboat.rotation.z = Math.sin(t * 1.5) * 0.04;
       this.motorboat.rotation.x = Math.sin(t * 1.1) * 0.02;
-      this.motorboat.position.x = cameraSideX(16, 'right') + Math.sin(t * 0.4) * 1.8;
-      // Stay alongside the player in Z
-      this.motorboat.position.z = 18 + Math.sin(t * 0.7) * 4;
+      this.motorboat.position.x = cameraSideX(10, 'right') + Math.sin(t * 0.4) * 1.5;
+      this.motorboat.position.z = 16 + Math.sin(t * 0.7) * 3;
+
+      // Tow rope from boat to player (only when on waterskis)
+      const isWaterSkis = this.game.player.currentVehicle === 'skis';
+      if (isWaterSkis && this.game.running) {
+        if (!this.towRope) {
+          const geo = new THREE.BufferGeometry();
+          const positions = new Float32Array(6); // 2 points × 3
+          geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          const mat = new THREE.LineBasicMaterial({ color: 0x111111, linewidth: 2 });
+          this.towRope = new THREE.Line(geo, mat);
+          this.game.scene.add(this.towRope);
+        }
+        const posAttr = this.towRope.geometry.attributes.position as THREE.BufferAttribute;
+        // From boat stern
+        posAttr.setXYZ(0, this.motorboat.position.x, this.motorboat.position.y + 0.2, this.motorboat.position.z - 2);
+        // To the handle junction point on the waterskis
+        const pp = this.game.player.group.position;
+        posAttr.setXYZ(1, pp.x, pp.y + 0.8, pp.z + 1.2);
+        posAttr.needsUpdate = true;
+      } else if (this.towRope) {
+        this.game.scene.remove(this.towRope);
+        this.towRope = null;
+      }
     }
 
     // Summer sun, glow, and thin clouds
