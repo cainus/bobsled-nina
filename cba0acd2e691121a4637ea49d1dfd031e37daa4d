@@ -1,0 +1,23 @@
+src/Player.ts
+  5f546b2f94aa423f 170-171,173-174,184,187-193,195-196,200,203-204,207,210-211,237,239,241-242,252,255-260,262-263,269-270,275-276,827,829-830,932,1009-1010,1013,1025-1026,1028-1030,1039-1040,1042-1044,1052,1054-1056,1112-1121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "cba0acd2e691121a4637ea49d1dfd031e37daa4d",
+  "prompts": {
+    "5f546b2f94aa423f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7a6efe3-32d4-4d1e-bf8c-bed7f2a100b1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Greggory Caines <gregg@caines.ca>",
+      "messages": [],
+      "total_additions": 179,
+      "total_deletions": 169,
+      "accepted_lines": 68,
+      "overriden_lines": 0
+    }
+  }
+}
